@@ -31,7 +31,7 @@ struct remap {
 	int shifts[MAX_PATH_LENGTH];
 };
 
-static int remap_local(struct remap *rmp, int ttl, int minttl);
+static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall);
 static void remap_binary(struct remap *rmp, int l, int r);
 
 static struct remap * remap_create(const struct opts *opts);
@@ -57,7 +57,14 @@ void remap(const struct opts *opts) /* {{{ */
 
 	struct pathhop *hop = remap_get_hop(rmp, rmp->startttl);
 
-	if(pathhop_is_star(hop)) goto out_star;
+	// Unresponsive hop potential fix
+	while(pathhop_is_star(hop) && rmp->startttl > 0) {
+		logd(LOG_INFO, "%s: unresponsive hop, will check the one before\n", __func__); 
+		rmp->startttl--;
+		hop = remap_get_hop(rmp, rmp->startttl);
+	}
+	if(pathhop_is_star(hop)) goto out;
+
 	/* TODO FIXME improve this so we probe backwards; make it so we can
 	 * remap paths that become shorter. */
 
@@ -66,7 +73,7 @@ void remap(const struct opts *opts) /* {{{ */
 		logd(LOG_INFO, "%s: no remap to do\n", __func__);
 	} else if(ttl == -1) {
 		logd(LOG_INFO, "%s: starting with local remap\n", __func__);
-		remap_local(rmp, rmp->startttl - 1, 0);
+		remap_local(rmp, rmp->startttl - 1, 0, 1);
 	} else {
 		logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
 		remap_binary(rmp, 0, rmp->startttl);	
@@ -79,15 +86,12 @@ void remap(const struct opts *opts) /* {{{ */
 	out_length:
 	logd(LOG_INFO, "%s: can't start after old path length+1\n", __func__);
 	goto out;
-	out_star:
-	logd(LOG_INFO, "%s: can't remap from unresponsive hop\n", __func__);
-	pathhop_destroy(hop);
 	out:
 	remap_destroy(rmp);
 	printf("remap failed. (try checking the logs)\n");
 } /* }}} */
 
-static int remap_local(struct remap *rmp, int ttl, int minttl) /* {{{ */
+static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /* {{{ */
 {
 	struct pathhop *hop;
 	int branch = ttl;
@@ -105,8 +109,14 @@ static int remap_local(struct remap *rmp, int ttl, int minttl) /* {{{ */
 	int join = ttl + 1;
 	int join_last_responsive = ttl;
 	do {
-		if(join > MAX_PATH_LENGTH-1 || join - join_last_responsive > 3)
-			break;
+		if(join > MAX_PATH_LENGTH-1 ||
+			(join - join_last_responsive > 3 && firstCall)) {
+			/* there may be responsive hops after join if
+			 * remap_local was called from the binsearch
+			 * method.  first_call checks this is not
+			 * the case before exiting. */
+			break; 
+		}
 		logd(LOG_INFO, "%s: looking for join at ttl %d\n", __func__,
 				join);
 		hop = remap_get_hop(rmp, join);
@@ -148,7 +158,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 		}
 		if(i == l) {
 			/* STARs made us reach the left limit, fallback */
-			r = remap_local(rmp, (l + r)/2, l);	
+			r = remap_local(rmp, (l + r)/2, l, 0);	
 			break;
 		}
 
@@ -167,7 +177,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 			p1right = p1ttl;
 		} else {
 			/* found a hop that is not in the old path */
-			r = remap_local(rmp, i, l);
+			r = remap_local(rmp, i, l, 0);
 			break;
 		}
 	}
