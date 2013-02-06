@@ -112,7 +112,7 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /*
 		if(join > MAX_PATH_LENGTH-1) {
 			logd(LOG_DEBUG, "path too long\n");	
 		}
-		if((join - join_last_responsive > 4) && firstCall) {
+		if((join - join_last_responsive > 2) && firstCall) {
 			/* there may be responsive hops after join if
 			 * remap_local was called from the binsearch
 			 * method.  first_call checks this is not
@@ -123,7 +123,7 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /*
 		logd(LOG_INFO, "%s: looking for join at ttl %d\n", __func__,
 				join);
 		hop = remap_get_hop(rmp, join);
-		if(!pathhop_is_star(hop)) join_last_responsive = ttl;
+		if(!pathhop_is_star(hop)) join_last_responsive = join;
 		join++;
 		if(pathhop_contains_ip(hop, path_dst(rmp->path))) {
 			logd(LOG_DEBUG, "hop contains dst\n");
@@ -131,9 +131,6 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /*
 		}
 	} while(pathhop_is_star(hop) || 
 			path_search_hop(rmp->path, hop, 0) < p1branch);
-	if(path_search_hop(rmp->path, hop, 0) >= p1branch) {
-		logd(LOG_DEBUG, "hop found on path\n");
-	}
 	join--;
 	if(!pathhop_is_star(hop)) {
 		/* we have a join point */
