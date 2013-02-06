@@ -112,7 +112,7 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /*
 		if(join > MAX_PATH_LENGTH-1) {
 			logd(LOG_DEBUG, "path too long\n");	
 		}
-		if((join - join_last_responsive > 2) && firstCall) {
+		if((join - join_last_responsive > 4) && firstCall) {
 			/* there may be responsive hops after join if
 			 * remap_local was called from the binsearch
 			 * method.  first_call checks this is not
