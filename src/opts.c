@@ -20,7 +20,7 @@ printf("packets.  It needs to be run as superuser.\n");
 printf("\n");
 printf("\t-i IFNAME\tName of the interface to use (e.g., eth0).\n");
 printf("\t-p STR\t\tHOPSTR containing the old path (see below).\n");
-printf("\t-d DST\t\tIP address of the destionation.\n");
+printf("\t-d DST\t\tIP address of the destination.\n");
 printf("\t-t TTL\t\tTTL where to start the remap (where IPADDR is located).\n");
 printf("\n");
 printf("HOPSTR := HOP|HOP|...|HOP\n");
