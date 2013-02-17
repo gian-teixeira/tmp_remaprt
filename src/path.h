@@ -46,6 +46,8 @@ struct pavl_table * path_interfaces(const struct path *p);
 int path_alias(const struct path *p);
 void path_alias_set(struct path *p, int alias);
 
+void path_set_tstamp(struct path *p);
+
 /*****************************************************************************
  * struct pathhop *
  ****************************************************************************/

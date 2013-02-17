@@ -259,14 +259,8 @@ static void remap_destroy(struct remap *rmp) /* {{{ */
 
 static void remap_print_result(const struct remap *rmp) /* {{{ */
 {
-	struct pavl_traverser trav;
-	struct pathhop *hop;
-	for(hop = pavl_t_first(&trav, rmp->db->hops); hop;
-			hop = pavl_t_next(&trav)) {
-		char *str = pathhop_tostr(hop);
-		printf("%d %s\n", pathhop_ttl(hop), str);
-		free(str);
-	}
+	path_set_tstamp(rmp->path);
+	printf("%s\n", path_tostr(rmp->path));
 } /* }}} */
 
 struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */

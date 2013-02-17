@@ -363,6 +363,14 @@ struct pavl_table * path_interfaces(const struct path *p) { return p->ifaces; }
 int path_alias(const struct path *p) { return p->alias; }
 void path_alias_set(struct path *p, int alias) { p->alias = alias; }
 
+void path_set_tstamp(struct path *p) /* {{{ */
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	p->tstamp = ts;
+	return;
+} /* }}} */
+
 /*****************************************************************************
  * struct path static implementations
  ****************************************************************************/
