@@ -46,8 +46,6 @@ struct pavl_table * path_interfaces(const struct path *p);
 int path_alias(const struct path *p);
 void path_alias_set(struct path *p, int alias);
 
-void path_set_tstamp(struct path *p);
-
 /*****************************************************************************
  * struct pathhop *
  ****************************************************************************/
@@ -61,6 +59,7 @@ int pathhop_contains_ip(const struct pathhop *h, uint32_t ip);
 char * pathhop_tostr(const struct pathhop *h);
 int pathhop_is_star(const struct pathhop *h);
 int pathhop_ttl(const struct pathhop *hop);
+struct pathhop * pathhop_get_hop(struct path *path, int ttl);
 
 /*****************************************************************************
  * struct iface *
