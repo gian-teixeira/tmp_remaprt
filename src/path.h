@@ -41,6 +41,7 @@ int path_search_hop(const struct path *p, const struct pathhop *hop,
 uint32_t path_dst(const struct path *p);
 int path_length(const struct path *p);
 const uint32_t * path_dstptr(const struct path *p);
+const uint32_t * path_srcptr(const struct path *p);
 struct timespec path_tstamp(const struct path *p);
 struct pavl_table * path_interfaces(const struct path *p);
 int path_alias(const struct path *p);

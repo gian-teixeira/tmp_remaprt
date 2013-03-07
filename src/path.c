@@ -357,6 +357,7 @@ int path_search_hop(const struct path *p, const struct pathhop *hop, /* {{{ */
 
 uint32_t path_dst(const struct path *p) { return p->dst; }
 const uint32_t * path_dstptr(const struct path *p) { return &p->dst; }
+const uint32_t * path_srcptr(const struct path *p) { return &p->src; }
 int path_length(const struct path *p) { return p->length; }
 struct timespec path_tstamp(const struct path *p) { return p->tstamp; }
 struct pavl_table * path_interfaces(const struct path *p) { return p->ifaces; }

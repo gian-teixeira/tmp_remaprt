@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <limits.h>
+#include <arpa/inet.h>
 
 #include "probedb.h"
 #include "prober.h"
@@ -12,6 +13,7 @@
 #include "log.h"
 #include "pavl.h"
 #include "tqueue.h"
+#include "timespec.h"
 
 #include "remap.h"
 
@@ -263,10 +265,21 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	struct pathhop *hop = pavl_t_first(&trav, rmp->db->hops);
 	int ttl;
 
+	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+
+	if(!inet_ntop(AF_INET, path_srcptr(rmp->path), src, INET_ADDRSTRLEN)) goto out;
+	if(!inet_ntop(AF_INET, path_dstptr(rmp->path), dst, INET_ADDRSTRLEN)) goto out;
+
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	unsigned time = ts.tv_sec;
+
+	printf("%s %s %u ", src, dst, time);
+
 	/* Prints hops BEFORE change */
 	for(ttl=0; ttl < pathhop_ttl(hop); ttl++) {
 		char *str = pathhop_tostr(pathhop_get_hop(rmp->path, ttl));
-		printf("%d %s\n", ttl, str);
+		printf("%s|", str);
 		free(str);
 	}
 
@@ -274,19 +287,36 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	for(hop = pavl_t_first(&trav, rmp->db->hops); hop;
 			hop = pavl_t_next(&trav)) {
 		char *str = pathhop_tostr(hop);
-		printf("%d %s\n", pathhop_ttl(hop), str);
-		free(str);
 		ttl++;
+		if (ttl < (path_length(rmp->path)-1)) {
+			printf("%s|", str);
+		}
+		else {
+			/* Last hop mustn't have the pipe */
+			printf("%s\n", str);
+		}
+		free(str);
+		
 	}
 
 	/* Prints hops AFTER change */
-	for(ttl; ttl < path_length(rmp->path); ttl++) {
+	for(ttl; ttl < (path_length(rmp->path)-1); ttl++) {
 		char *str = pathhop_tostr(pathhop_get_hop(rmp->path, ttl));
-		printf("%d %s\n", ttl, str);
+		printf("%s|", str);
 		free(str);
 	}
 
-	printf("%d \n", path_length(rmp->path));
+	/* Last hop mustn't have the pipe */
+	if (ttl == (path_length(rmp->path)-1)) {
+		char *str = pathhop_tostr(pathhop_get_hop(rmp->path, ttl));
+		printf("%s\n", str);
+		free(str);
+	}
+
+	return;
+
+	out:
+	printf("ERRO!\n");
 } /* }}} */
 
 struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
