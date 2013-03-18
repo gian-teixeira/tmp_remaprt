@@ -287,7 +287,6 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	for(hop = pavl_t_first(&trav, rmp->db->hops); hop;
 			hop = pavl_t_next(&trav)) {
 		char *str = pathhop_tostr(hop);
-		ttl++;
 		if (ttl < (path_length(rmp->path)-1)) {
 			printf("%s|", str);
 		}
@@ -295,8 +294,8 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 			/* Last hop mustn't have the pipe */
 			printf("%s\n", str);
 		}
+		ttl++;
 		free(str);
-		
 	}
 
 	/* Prints hops AFTER change */
