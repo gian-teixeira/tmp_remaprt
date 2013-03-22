@@ -19,6 +19,7 @@
 
 #define MAX_PATH_LENGTH 32
 #define RMP_SHIFT_CHANGE INT_MAX
+#define PATH_STR_BUF 65535
 
 /*****************************************************************************
  * declarations
@@ -263,7 +264,32 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 {
 	struct pavl_traverser trav;
 	struct pathhop *hop = pavl_t_first(&trav, rmp->db->hops);
-	int ttl;
+	/*
+	for(ttl=0; ttl < (pathhop_ttl(hop)-1); ttl++) {
+		char *str = pathhop_tostr(pathhop_get_hop(rmp->path, ttl));
+		printf("%d %s\n", ttl, str);
+		free(str);
+	}
+	printf("Initial map over\n");
+
+	for(hop = pavl_t_first(&trav, rmp->db->hops); hop;
+			hop = pavl_t_next(&trav)) {
+		char *str = pathhop_tostr(hop);
+		printf("%d %s\n", pathhop_ttl(hop), str);
+		free(str);
+		ttl++;
+	}
+
+	printf("Changed map over\n");
+	for(ttl; ttl < (path_length(rmp->path)); ttl++) {
+		char *str = pathhop_tostr(pathhop_get_hop(rmp->path, ttl));
+		printf("%d %s\n", ttl, str);
+		free(str);
+	}
+
+	printf("\n\n");
+
+	hop = pavl_t_first(&trav, rmp->db->hops); 
 
 	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
 
@@ -276,14 +302,16 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 
 	printf("%s %s %u ", src, dst, time);
 
-	/* Prints hops BEFORE change */
-	for(ttl=0; ttl < pathhop_ttl(hop); ttl++) {
+	/* Prints hops BEFORE change 
+	for(ttl=0; ttl < (pathhop_ttl(hop)-1); ttl++) {
 		char *str = pathhop_tostr(pathhop_get_hop(rmp->path, ttl));
 		printf("%s|", str);
 		free(str);
 	}
+	ttl++;
 
-	/* Prints the actual changes */
+	/* Prints the actual changes 
+	int endFlag = 0;
 	for(hop = pavl_t_first(&trav, rmp->db->hops); hop;
 			hop = pavl_t_next(&trav)) {
 		char *str = pathhop_tostr(hop);
@@ -291,29 +319,100 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 			printf("%s|", str);
 		}
 		else {
-			/* Last hop mustn't have the pipe */
+			/* Last hop mustn't have the pipe 
 			printf("%s\n", str);
+			endFlag = 1;
 		}
 		ttl++;
 		free(str);
 	}
 
-	/* Prints hops AFTER change */
+	/* Prints hops AFTER change
 	for(ttl; ttl < (path_length(rmp->path)-1); ttl++) {
 		char *str = pathhop_tostr(pathhop_get_hop(rmp->path, ttl));
 		printf("%s|", str);
 		free(str);
 	}
 
-	/* Last hop mustn't have the pipe */
-	if (ttl == (path_length(rmp->path)-1)) {
+	/* Last hop mustn't have the pipe
+	if ((ttl == (path_length(rmp->path)-1)) && (endFlag == 0)) {
 		char *str = pathhop_tostr(pathhop_get_hop(rmp->path, ttl));
 		printf("%s\n", str);
 		free(str);
+	} */
+
+	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN], *hstr, *buf;
+
+	if(!inet_ntop(AF_INET, path_srcptr(rmp->path), src, INET_ADDRSTRLEN)) goto out;
+	if(!inet_ntop(AF_INET, path_dstptr(rmp->path), dst, INET_ADDRSTRLEN)) goto out;
+
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	unsigned time = ts.tv_sec;
+
+	hop = pavl_t_first(&trav, rmp->db->hops); 
+
+	if(path_length(rmp->path) > 0) {
+		int i, bufsz;
+		hstr = malloc(PATH_STR_BUF);
+		if(!hstr) logea(__FILE__, __LINE__, NULL);
+		hstr[0] = '\0';
+		bufsz = PATH_STR_BUF - 1;
+
+		/* Hops before change */
+		for(i = 0; i < pathhop_ttl(hop); i++) {
+			char *s = pathhop_tostr(pathhop_get_hop(rmp->path, i));
+			strncat(hstr, s, bufsz);
+			bufsz -= strlen(s);
+			free(s);
+			bufsz = (bufsz < 0) ? 0 : bufsz;
+			strncat(hstr, "|", bufsz);
+			bufsz--;
+			bufsz = (bufsz < 0) ? 0 : bufsz;
+		}
+
+		/* Actual changes */
+		for(hop = pavl_t_first(&trav, rmp->db->hops); hop;
+				hop = pavl_t_next(&trav)) {
+			char *s = pathhop_tostr(hop);
+			strncat(hstr, s, bufsz);
+			bufsz -= strlen(s);
+			free(s);
+			bufsz = (bufsz < 0) ? 0 : bufsz;
+			strncat(hstr, "|", bufsz);
+			bufsz--;
+			bufsz = (bufsz < 0) ? 0 : bufsz;
+			i++;
+		}
+
+		/* Hops after changes */
+		for(i; i < path_length(rmp->path); i++) {
+			char *s = pathhop_tostr(pathhop_get_hop(rmp->path, i));
+			strncat(hstr, s, bufsz);
+			bufsz -= strlen(s);
+			free(s);
+			bufsz = (bufsz < 0) ? 0 : bufsz;
+			strncat(hstr, "|", bufsz);
+			bufsz--;
+			bufsz = (bufsz < 0) ? 0 : bufsz;
+		}
+		assert(*(strchr(hstr, '\0') - 1) == '|');
+		*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
+	} else {
+		hstr = malloc(1);
+		if(!hstr) logea(__FILE__, __LINE__, NULL);
+		*hstr = '\0';
 	}
 
-	return;
+	buf = malloc(PATH_STR_BUF);
+	if(!buf) logea(__FILE__, __LINE__, NULL);
+	snprintf(buf, PATH_STR_BUF, "%s %s %d %s", src, dst,
+			time, hstr);
+	free(hstr);
+	
+	printf ("%s\n", buf);
 
+	return;
 	out:
 	printf("ERRO!\n");
 } /* }}} */
