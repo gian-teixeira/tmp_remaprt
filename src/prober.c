@@ -101,10 +101,12 @@ void prober_destroy(struct prober *p)  /* {{{ */
                 logd(LOG_DEBUG, "%s: refcnt != 0\n", __func__);
                 return;
         }
-	pthread_cancel(p->thread);
+	if(pthread_cancel(p->thread)) loge(LOG_WARNING, __FILE__, __LINE__);
 	i = pthread_join(p->thread, &r);
-	if(i || r != PTHREAD_CANCELED)
-		logd(5, "%s join(%s) ret(%p)\n", __func__, strerror(errno), r);
+	if(1 || i || r != PTHREAD_CANCELED) {
+		logd(LOG_WARNING, "%s join(%d, %s) ret(%p)\n", __func__, i,
+                                strerror(errno), r);
+        }
 	tqueue_destroy(p->tq);
 	confirm_destroy(p->confirm);
 	free(p);

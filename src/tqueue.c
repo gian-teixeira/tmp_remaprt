@@ -18,14 +18,14 @@ struct tqueue * tqueue_create(void) /* {{{ */
 	tq->queue = dlist_create();
 	if(!tq->queue) logea(__FILE__, __LINE__, NULL);
 	pthread_mutex_init(&tq->mutex, NULL);
-	pthread_cond_init(&tq->cond, NULL);
+	if(pthread_cond_init(&tq->cond, NULL)) logea(__FILE__, __LINE__, NULL);
 	return tq;
 } /* }}} */
 
 void tqueue_destroy(struct tqueue *tq) /* {{{ */
 {
 	if(!dlist_empty(tq->queue)) logd(LOG_INFO, "destroying nonempty tq\n");
-	pthread_mutex_unlock(&tq->mutex);
+	// pthread_mutex_unlock(&tq->mutex);
 	if(pthread_mutex_destroy(&tq->mutex)) loge(LOG_DEBUG, __FILE__, __LINE__);
 	if(pthread_cond_destroy(&tq->cond)) loge(LOG_DEBUG, __FILE__, __LINE__);
 	dlist_destroy(tq->queue, NULL);
