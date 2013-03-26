@@ -25,7 +25,6 @@ struct tqueue * tqueue_create(void) /* {{{ */
 void tqueue_destroy(struct tqueue *tq) /* {{{ */
 {
 	if(!dlist_empty(tq->queue)) logd(LOG_INFO, "destroying nonempty tq\n");
-	// pthread_mutex_unlock(&tq->mutex);
 	if(pthread_mutex_destroy(&tq->mutex)) loge(LOG_DEBUG, __FILE__, __LINE__);
 	if(pthread_cond_destroy(&tq->cond)) loge(LOG_DEBUG, __FILE__, __LINE__);
 	dlist_destroy(tq->queue, NULL);
@@ -35,7 +34,7 @@ void tqueue_destroy(struct tqueue *tq) /* {{{ */
 int tqsize(struct tqueue *tq) /* {{{ */
 {
 	pthread_mutex_lock(&tq->mutex);
-	int sz = dlist_size(tq->queue);	
+	int sz = dlist_size(tq->queue); 
 	pthread_mutex_unlock(&tq->mutex);
 	return sz;
 } /* }}} */
@@ -51,8 +50,15 @@ void tqsend(struct tqueue *tq, void *ptr) /* {{{ */
 void * tqrecv(struct tqueue *tq) /* {{{ */
 {
 	pthread_mutex_lock(&tq->mutex);
+	pthread_cleanup_push(tqueue_mutex_unlock, &(tq->mutex));
 	if(dlist_empty(tq->queue)) pthread_cond_wait(&tq->cond, &tq->mutex);
+	pthread_cleanup_pop(0);
 	void *ptr = dlist_pop_left(tq->queue);
 	pthread_mutex_unlock(&tq->mutex);
 	return ptr;
+} /* }}} */
+
+static void tqueue_mutex_unlock(void *vmutex) /* {{{ */
+{
+	pthread_mutex_unlock(vmutex);
 } /* }}} */
