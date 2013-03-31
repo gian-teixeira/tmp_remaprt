@@ -29,7 +29,7 @@ struct cyclic {
 static int cyc_check_open_file(struct cyclic *cyc);
 static int cyc_open_periodic(struct cyclic *cyc);
 static int cyc_open_filesize(struct cyclic *cyc);
-
+static void cyc_mutex_unlock(void *vmutex);
 
 /*****************************************************************************
  * cyclic function implementations
@@ -94,15 +94,16 @@ int cyc_printf(struct cyclic *cyc, const char *fmt, ...) /* {{{ */
 {
 	char line[CYCLIC_LINEBUF];
 	va_list ap;
+	int cnt = 0;
 	va_start(ap, fmt);
 	pthread_mutex_lock(&cyc->mutex);
-	if(!cyc_check_open_file(cyc)) {
-		pthread_mutex_unlock(&cyc->mutex);
-		return 0;
+	pthread_cleanup_push(cyc_mutex_unlock, &(cyc->mutex));
+	if(cyc_check_open_file(cyc)) {
+		vsnprintf(line, CYCLIC_LINEBUF, fmt, ap);
+		cnt = fprintf(cyc->file, line);
+		fflush(cyc->file);
 	}
-	vsnprintf(line, CYCLIC_LINEBUF, fmt, ap);
-	int cnt = fprintf(cyc->file, line);
-	fflush(cyc->file);
+	pthread_cleanup_pop(0);
 	pthread_mutex_unlock(&cyc->mutex);
 	va_end(ap);
 	return cnt;
@@ -111,14 +112,15 @@ int cyc_printf(struct cyclic *cyc, const char *fmt, ...) /* {{{ */
 int cyc_vprintf(struct cyclic *cyc, const char *fmt, va_list ap) /* {{{ */
 {
 	char line[CYCLIC_LINEBUF];
+	int cnt = 0;
 	pthread_mutex_lock(&cyc->mutex);
-	if(!cyc_check_open_file(cyc)) {
-		pthread_mutex_unlock(&cyc->mutex);
-		return 0;
+	pthread_cleanup_push(cyc_mutex_unlock, &(cyc->mutex));
+	if(cyc_check_open_file(cyc)) {
+		vsnprintf(line, CYCLIC_LINEBUF, fmt, ap);
+		cnt = fprintf(cyc->file, line);
+		fflush(cyc->file);
 	}
-	vsnprintf(line, CYCLIC_LINEBUF, fmt, ap);
-	int cnt = fprintf(cyc->file, line);
-	fflush(cyc->file);
+	pthread_cleanup_pop(0);
 	pthread_mutex_unlock(&cyc->mutex);
 	return cnt;
 } /* }}} */
@@ -223,4 +225,10 @@ static int cyc_open_filesize(struct cyclic *cyc) /* {{{ */
 	free(fname);
 	errno = tmp; }
 	return 0;
+} /* }}} */
+
+
+static void cyc_mutex_unlock(void *vmutex) /* {{{ */
+{
+	pthread_mutex_unlock(vmutex);
 } /* }}} */

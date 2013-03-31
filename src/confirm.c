@@ -156,9 +156,10 @@ void confirm_destroy(struct confirm *confirm) /* {{{ */
 {
 	int i;
 	void *r;
+	logd(LOG_DEBUG, "entering %s\n", __func__);
 	demux_listener_del(confirm_recv, confirm);
 
-	pthread_cancel(confirm->thread);
+	if(pthread_cancel(confirm->thread)) loge(LOG_FATAL, __FILE__, __LINE__);
 	i = pthread_join(confirm->thread, &r);
 	if(i || r != PTHREAD_CANCELED)
 		logd(5, "%s join(%s) ret(%p)\n", __func__, strerror(errno), r);

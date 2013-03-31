@@ -88,7 +88,6 @@ void remap(const struct opts *opts) /* {{{ */
 
 	out_length:
 	logd(LOG_INFO, "%s: can't start after old path length+1\n", __func__);
-	goto out;
 	out:
 	remap_destroy(rmp);
 	printf("remap failed. (try checking the logs)\n");
@@ -253,6 +252,7 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 
 static void remap_destroy(struct remap *rmp) /* {{{ */
 {
+	logd(LOG_DEBUG, "entering %s\n", __func__);
 	path_destroy(rmp->path);
 	probedb_destroy(rmp->db);
 	prober_destroy(rmp->prober);

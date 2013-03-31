@@ -80,6 +80,10 @@ struct opts * opts_parse(int argc, char **argv) /* {{{ */
 	if(opts->path == NULL) goto out_destroy;
 	free(hopstr);
 
+	char *pstr = path_tostr(opts->path);
+	logd(LOG_INFO, "path %s\n", pstr);
+	free(pstr);
+
 	return opts;
 
 	out_eval:
