@@ -652,7 +652,9 @@ int pathhop_is_star(const struct pathhop *h) /* {{{ */
 	return 1;
 } /* }}} */
 
-int pathhop_ttl(const struct pathhop *h) { return h->ttl; }
+int pathhop_ttl(const struct pathhop *h) { 
+	if(h != NULL) return h->ttl;
+	else return (-1); }
 
 int pathhop_contains_ip(const struct pathhop *h, uint32_t ip) /* {{{ */
 {
