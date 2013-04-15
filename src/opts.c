@@ -107,5 +107,6 @@ void opts_destroy(struct opts *opts) /* {{{ */
 {
 	if(opts->path) path_destroy(opts->path);
 	free(opts->iface);
+	free(opts->logbase);
 	free(opts);
 } /* }}} */
