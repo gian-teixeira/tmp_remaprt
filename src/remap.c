@@ -265,7 +265,8 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	struct pavl_traverser trav;
 	struct pathhop *hop = pavl_t_first(&trav, rmp->db->hops);
 
-	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN], *hstr, *buf;
+	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+        char *hstr, *buf;
 
 	if(!inet_ntop(AF_INET, path_srcptr(rmp->path), src, INET_ADDRSTRLEN)) goto out;
 	if(!inet_ntop(AF_INET, path_dstptr(rmp->path), dst, INET_ADDRSTRLEN)) goto out;
@@ -274,15 +275,15 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	clock_gettime(CLOCK_REALTIME, &ts);
 	unsigned time = ts.tv_sec;
 
+        hstr = malloc(PATH_STR_BUF);
+        if(!hstr) logea(__FILE__, __LINE__, NULL);
+        hstr[0] = '\0';
+
 	if(path_length(rmp->path) > 0) {
-		int ttl_lin = 0, ttl_var = 0; int bufsz;
-		hstr = malloc(PATH_STR_BUF);
-		if(!hstr) logea(__FILE__, __LINE__, NULL);
-		hstr[0] = '\0';
-		bufsz = PATH_STR_BUF - 1;
+		int ttl_lin = 0, ttl_var = 0;
+                int bufsz = PATH_STR_BUF - 1;
 
 		while(ttl_var < path_length(rmp->path)) {
-			
 			if (ttl_lin == pathhop_ttl(hop) && hop != NULL) {
 				char *s = pathhop_tostr(hop);
 				strncat(hstr, s, bufsz);
@@ -314,23 +315,20 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 
 		assert(*(strchr(hstr, '\0') - 1) == '|');
 		*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
-	} else {
-		hstr = malloc(1);
-		if(!hstr) logea(__FILE__, __LINE__, NULL);
-		*hstr = '\0';
 	}
 
 	buf = malloc(PATH_STR_BUF);
 	if(!buf) logea(__FILE__, __LINE__, NULL);
-	snprintf(buf, PATH_STR_BUF, "%s %s %d %s", src, dst,
-			time, hstr);
+	snprintf(buf, PATH_STR_BUF, "%s %s %d %s", src, dst, time, hstr);
 	free(hstr);
-	
-	printf ("%s\n\n", buf);
+	printf("%s\n\n", buf);
+        free(buf);
 
 	return;
+
 	out:
-	printf("Erro na saida!\n");
+        loge(LOG_FATAL, "%s:%d: IP conversion error.\n", __FILE__, __LINE__);
+        return;
 } /* }}} */
 
 struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
