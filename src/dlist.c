@@ -2,12 +2,11 @@
 #include <assert.h>
 
 #include "dlist.h"
-#include "log.h"
 
 struct dlist *dlist_create(void) /* {{{ */
 {
 	struct dlist *dl = malloc(sizeof(struct dlist));
-	if(!dl) logea(__FILE__, __LINE__, NULL);
+	if(!dl) return NULL;
 	dl->head = NULL;
 	dl->tail = NULL;
 	dl->count = 0;
@@ -68,7 +67,7 @@ void *dlist_pop_right(struct dlist *dl) /* {{{ */
 void *dlist_push_right(struct dlist *dl, void *data) /* {{{ */
 {
 	struct dnode *node = malloc(sizeof(struct dnode));
-	if(!node) logea(__FILE__, __LINE__, NULL);
+	if(!node) return NULL;
 
 	node->data = data;
 	node->prev = dl->tail;

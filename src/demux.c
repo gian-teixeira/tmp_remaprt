@@ -50,6 +50,8 @@ static int demux_check_iface(const char *iface, pcap_if_t *pcapif);
 
 static void packet_fillheaders(struct packet *pkt);
 
+static void demux_mutex_unlock(void *vmutex);
+
 
 /*****************************************************************************
  * public implementations
@@ -106,8 +108,6 @@ void demux_destroy(void) /* {{{ */
 		logd(LOG_DEBUG, "%s:%d: join(%s) ret(%p)\n", __FILE__,
 				__LINE__, strerror(errno), r);
 	}
-	/* demux->thread exits with the lock */
-	pthread_mutex_unlock(&demux->imut); 
 	
 	i = pthread_cond_destroy(&demux->read);
 	if(i) logd(LOG_DEBUG, "%s read %s\n", __func__, strerror(errno));
@@ -281,7 +281,10 @@ static void * demux_thread(void *nothing) /* {{{ */
 	pthread_mutex_lock(&demux->imut);
 	while(1) {
 		if(demux->usedbuf == 0) {
+			pthread_cleanup_push(demux_mutex_unlock,
+					&(demux->imut));
 			pthread_cond_wait(&demux->read, &demux->imut);
+			pthread_cleanup_pop(0);
 		}
 
 		worksize = demux->writeidx - demux->readidx;
@@ -379,4 +382,9 @@ static void packet_fillheaders(struct packet *pkt) /* {{{ */
 		logd(5, "%s unknown ip proto\n", __func__);
 		break;
 	}
+} /* }}} */
+
+static void demux_mutex_unlock(void *vmutex) /* {{{ */
+{
+	pthread_mutex_unlock((pthread_mutex_t *)vmutex);
 } /* }}} */

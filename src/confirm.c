@@ -78,6 +78,8 @@ static int confirm_recv_parse(const struct packet *pkt, uint32_t *dst,
 	       uint8_t *ttl, uint8_t *flowid, uint32_t *ip);
 static void confirm_sendevent(struct confirm *confirm, struct event *ev);
 
+static void confirm_mutex_unlock(void *vmutex);
+
 static struct event * event_create(unsigned type, struct confirm_query *query);
 static void event_destroy(struct event *event);
 static void event_destroy_pavl(void *event, void *dummy);
@@ -130,7 +132,7 @@ struct confirm * confirm_create(const char *device) /* {{{ */
 	demux_listener_add(confirm_recv, confirm);
 
 	logd(LOG_INFO, "%s dev=%s ok\n", __func__, device);
-	return confirm;	
+	return confirm; 
 
 	out_sender:
 	loge(LOG_DEBUG, __FILE__, __LINE__);
@@ -163,7 +165,6 @@ void confirm_destroy(struct confirm *confirm) /* {{{ */
 	i = pthread_join(confirm->thread, &r);
 	if(i || r != PTHREAD_CANCELED)
 		logd(5, "%s join(%s) ret(%p)\n", __func__, strerror(errno), r);
-	pthread_mutex_unlock(&confirm->evlist_mut);
 	if(pthread_mutex_destroy(&confirm->evlist_mut))
 		logd(5, "%s event_mut %s\n", __func__, strerror(errno));
 	if(pthread_cond_destroy(&confirm->event_cond))
@@ -197,15 +198,17 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 		pthread_mutex_lock(&confirm->evlist_mut);
 		while(!dlist_empty(confirm->evlist)) {
 			struct event *evv = dlist_pop_left(confirm->evlist);
+			pthread_mutex_unlock(&confirm->evlist_mut);
+			if(!evv) logea(__FILE__, __LINE__, "list empty");
 			assert(evv->type == EVENT_QUERY || 
 					evv->type == EVENT_ANSWER);
-			if(!evv) logea(__FILE__, __LINE__, "list empty");
-			pthread_mutex_unlock(&confirm->evlist_mut);
 			event_run(confirm, evv);
 			event_destroy(evv);
 			pthread_mutex_lock(&confirm->evlist_mut);
 		}
 
+		pthread_cleanup_push(confirm_mutex_unlock,
+				&(confirm->evlist_mut));
 		if(pavl_count(confirm->events) == 0) {
 			code = 0;
 			ev = NULL;
@@ -217,6 +220,7 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 			code = pthread_cond_timedwait(&confirm->event_cond, 
 					&confirm->evlist_mut, &ev->time);
 		}
+		pthread_cleanup_pop(0);
 
 		/* processing timed-out event first, otherwise an EVENT_ANSWER
 		 * for the timed-out event's query might happen and delete
@@ -292,6 +296,11 @@ static int confirm_recv_parse(const struct packet *pkt, uint32_t *dst, /* {{{ */
 		return 1;
 	}
 	return 0;
+} /* }}} */
+
+static void confirm_mutex_unlock(void *vmutex) /* {{{ */
+{
+	pthread_mutex_unlock((pthread_mutex_t *)vmutex);
 } /* }}} */
 
 /*****************************************************************************
