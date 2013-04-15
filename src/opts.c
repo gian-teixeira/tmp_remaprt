@@ -4,8 +4,8 @@
 
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <assert.h>
 
-#include "log.h"
 #include "opts.h"
 
 
@@ -22,6 +22,7 @@ printf("\t-i IFNAME\tName of the interface to use (e.g., eth0).\n");
 printf("\t-p STR\t\tHOPSTR containing the old path (see below).\n");
 printf("\t-d DST\t\tIP address of the destination.\n");
 printf("\t-t TTL\t\tTTL where to start the remap (where IPADDR is located).\n");
+printf("\t-l LOGBASE\tBase name for the log file.\n");
 printf("\n");
 printf("HOPSTR := HOP|HOP|...|HOP\n");
 printf("HOP := IFACE;IFACE;...;IFACE\n");
@@ -35,14 +36,18 @@ struct opts * opts_parse(int argc, char **argv) /* {{{ */
 	char *hopstr = NULL;
 
 	struct opts *opts = malloc(sizeof(struct opts));
-	if(!opts) logea(__FILE__, __LINE__, NULL);
+	if(!opts) {
+		perror(NULL);
+		exit(EXIT_FAILURE);
+	}
 
 	opts->iface = NULL;
 	opts->path = NULL;
+	opts->logbase = NULL;
 	opts->dst = 0;
 	opts->ttl = 0;
 
-	char *optstring = "i:p:d:t:h";
+	char *optstring = "i:p:d:t:l:h";
 
 	while((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
@@ -66,6 +71,11 @@ struct opts * opts_parse(int argc, char **argv) /* {{{ */
 			opts->ttl = (uint8_t)ttl;
 			break;
 		}
+		case 'l': {
+			if(strlen(optarg) == 0) goto out_eval;
+			opts->logbase = strdup(optarg);
+			break;
+		}
 		default:
 			goto out_eval;
 			break;
@@ -73,22 +83,18 @@ struct opts * opts_parse(int argc, char **argv) /* {{{ */
 	}
 
 	if(opts->iface == NULL || hopstr == NULL || opts->dst == 0 ||
-			opts->ttl == 0)
+			opts->ttl == 0 || opts->logbase == NULL)
 		goto out_destroy;
 
 	opts->path = path_create_str_hops(hopstr, opts->dst);
 	if(opts->path == NULL) goto out_destroy;
+	assert(path_length(opts->path) < 33);
 	free(hopstr);
-
-	char *pstr = path_tostr(opts->path);
-	logd(LOG_INFO, "path %s\n", pstr);
-	free(pstr);
 
 	return opts;
 
 	out_eval:
-	loge(LOG_FATAL, __FILE__, __LINE__);
-	logd(LOG_FATAL, "invalid value for parameter -%c\n", opt);
+	perror(NULL);
 	fprintf(stderr, "invalid value for parameter -%c\n", opt);
 	out_destroy:
 	if(hopstr != NULL) free(hopstr);

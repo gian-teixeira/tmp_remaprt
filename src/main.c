@@ -23,15 +23,19 @@ int check_permissions(void) { /* {{{ */
 
 int main(int argc, char** argv) /* {{{ */
 {
-	log_init(LOG_EXTRA, "log.txt", 1, 65535*128);
-
 	if(!check_permissions()) goto out_usage;
 
 	// struct rlimit rl = { 67108864L, 67108864L };
-        // if(setrlimit(RLIMIT_AS, &rl)) loge(1, __FILE__, __LINE__);
+	// if(setrlimit(RLIMIT_AS, &rl)) loge(1, __FILE__, __LINE__);
 
-        struct opts *opts = opts_parse(argc, argv);
-        if(!opts) goto out_usage;
+	struct opts *opts = opts_parse(argc, argv);
+	if(!opts) goto out_usage;
+
+	log_init(LOG_EXTRA, opts->logbase, 1, 65535*128);
+
+	char *pstr = path_tostr(opts->path);
+	logd(LOG_INFO, "path %s\n", pstr);
+	free(pstr);
 
 	if(demux_init(opts->iface)) goto out_opts;
 	
@@ -43,10 +47,10 @@ int main(int argc, char** argv) /* {{{ */
 	exit(EXIT_SUCCESS);
 
 	out_opts:
-        loge(LOG_DEBUG, __FILE__, __LINE__);
-        opts_destroy(opts);
-        out_usage:
-        opts_usage(argc, argv);
-        log_destroy();
-        exit(EXIT_FAILURE);
+	loge(LOG_DEBUG, __FILE__, __LINE__);
+	opts_destroy(opts);
+	out_usage:
+	opts_usage(argc, argv);
+	log_destroy();
+	exit(EXIT_FAILURE);
 } /* }}} */

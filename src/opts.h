@@ -7,6 +7,7 @@
 struct opts {
 	struct path *path;
 	char *iface;
+	char *logbase;
 	uint32_t dst;
 	uint8_t ttl;
 };
