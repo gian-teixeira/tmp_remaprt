@@ -289,7 +289,6 @@ static void * demux_thread(void *nothing) /* {{{ */
 
 		worksize = demux->writeidx - demux->readidx;
 		worksize = (worksize + DEMUX_BUFSZ) % DEMUX_BUFSZ;
-		pthread_mutex_unlock(&demux->imut);
 
 		pthread_mutex_lock(&demux->listenmut);
 		for(i = 0; i < worksize; i++) {
@@ -304,10 +303,10 @@ static void * demux_thread(void *nothing) /* {{{ */
 		}
 		pthread_mutex_unlock(&demux->listenmut);
 
-		pthread_mutex_lock(&demux->imut);
 		demux->readidx = (demux->readidx + worksize) % DEMUX_BUFSZ;
 		demux->usedbuf -= worksize;
 	}
+	pthread_mutex_unlock(&demux->imut);
 	pthread_exit(NULL);
 } /* }}} */
 

@@ -29,7 +29,6 @@ struct cyclic {
 static int cyc_check_open_file(struct cyclic *cyc);
 static int cyc_open_periodic(struct cyclic *cyc);
 static int cyc_open_filesize(struct cyclic *cyc);
-static void cyc_mutex_unlock(void *vmutex);
 
 /*****************************************************************************
  * cyclic function implementations
@@ -143,7 +142,7 @@ void cyc_unlock_file(struct cyclic *cyc) /* {{{ */
 } /* }}} */
 
 /*****************************************************************************
- * cyclic function implementations
+ * static function implementations
  ****************************************************************************/
 static int cyc_check_open_file(struct cyclic *cyc) /* {{{ */
 {
@@ -224,9 +223,4 @@ static int cyc_open_filesize(struct cyclic *cyc) /* {{{ */
 	free(fname);
 	errno = tmp; }
 	return 0;
-} /* }}} */
-
-static void cyc_mutex_unlock(void *vmutex) /* {{{ */
-{
-	pthread_mutex_unlock(vmutex);
 } /* }}} */
