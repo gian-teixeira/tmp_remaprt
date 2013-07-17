@@ -219,7 +219,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 static struct remap * remap_create(const struct opts *opts) /* {{{ */
 {
 	struct remap *rmp = malloc(sizeof(struct remap));
-	if(!remap) logea(__FILE__, __LINE__, NULL);
+	if(!rmp) logea(__FILE__, __LINE__, NULL);
 	rmp->path = path_create_copy(opts->path);
 	if(!rmp->path) goto out;
 	rmp->db = probedb_create();
