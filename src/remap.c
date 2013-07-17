@@ -131,8 +131,9 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /*
 			logd(LOG_DEBUG, "hop contains dst\n");
 			break;
 		}
-	} while(pathhop_is_star(hop) || 
-			path_search_hop(rmp->path, hop, 0) < p1branch);
+	} while((pathhop_is_star(hop) || 
+			path_search_hop(rmp->path, hop, 0) < p1branch) &&
+			join < MAX_PATH_LENGTH);
 	join--;
 	if(!pathhop_is_star(hop)) {
 		/* we have a join point */
