@@ -5,6 +5,8 @@
 - The current program exits if the first probed hop (the oned passed on the
 command line) is unresponsive.
 
+- NOT SURE IF REMAPROUTE DEALS WITH LOOPS
+
 ##############################################################################
 # LONG TERM
 ##############################################################################
