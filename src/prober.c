@@ -13,6 +13,7 @@
 #include "tqueue.h"
 #include "log.h"
 #include "confirm.h"
+#include "timespec.h"
 #include "prober.h"
 
 int PARIS_IFACE2PROBES[] = {4, 4, 8, 12, 16, 21, 25, 30, 35, 40, 45, 51, 56, 62, 74, 80};
@@ -37,7 +38,7 @@ struct hopremap {
 	int probes_sent;
 	int pending_probes;
 	struct pavl_table *ips;
-	struct pavl_map *id2iface; 
+	struct pavl_map *id2iface;
 	struct prober *prober;
 	/* NOTE: we do not have a mutex in pathhop_remap because all
 	 * changes in this structure is made by the prober thread */
@@ -185,9 +186,9 @@ static void prober_hop_process(struct confirm_query *q) /* {{{ */
 
 static struct iface * prober_parse(struct confirm_query *q) /* {{{ */
 {
-	char ifstr[80];
+	char ifstr[128];
 	char addr[INET_ADDRSTRLEN];
-	struct timespec tstamp;
+	struct timespec tstamp, rttts;
 
 	logd(LOG_EXTRA, "query dst ");
 	logip(LOG_EXTRA, q->dst);
@@ -195,10 +196,18 @@ static struct iface * prober_parse(struct confirm_query *q) /* {{{ */
 	logip(LOG_EXTRA, q->ip);
 	logd(LOG_EXTRA, "\n");
 
+
 	inet_ntop(AF_INET, &(q->ip), addr, INET_ADDRSTRLEN);
-	snprintf(ifstr, 80, "%s:%d:0.0,0.0,0.0,0.0:", addr, q->flowid);
 	if(clock_gettime(CLOCK_REALTIME, &tstamp)) goto out_error;
+
+	timespec_sub(tstamp, q->start, &rttts);
+	double rtt = timespec_todouble(rttts) * 1000;
+
+	snprintf(ifstr, 128, "%s:%d:%.2f,%.2f,%.2f,%.2f:", addr, q->flowid,
+			rtt, rtt, rtt, rtt);
 	struct iface *iff = iface_create_str(ifstr, tstamp, q->ttl);
+
+
 	return iff;
 
 	out_error:
@@ -246,7 +255,7 @@ static struct hopremap * hopremap_create(struct prober *p, uint8_t ttl) /*{{{*/
 static void hopremap_destroy(struct hopremap *hr) /* {{{ */
 {
 	map_destroy(hr->id2iface, hopremap_free_id2iface);
-	pavl_destroy(hr->ips, pavl_item_free);	
+	pavl_destroy(hr->ips, pavl_item_free);
 	free(hr);
 } /* }}} */
 
@@ -272,8 +281,8 @@ static void hopremap_send_probes(struct hopremap *hr, int count) /* {{{ */
 	assert(hr->probes_sent + count < UINT8_MAX);
 	for(int i = 0; i < count; i++) {
 		uint8_t id = i + hr->probes_sent;
-		struct confirm_query *q = confirm_query_create(hr->prober->dst,
-				hr->ttl, id);
+		struct confirm_query *q = confirm_query_create(
+				hr->prober->dst, hr->ttl, id);
 		q->cb = prober_hop_reply;
 		q->data = hr;
 		q->ntries = 1;
@@ -288,7 +297,7 @@ static void hopremap_hop_add(struct hopremap *hr, struct iface *iff) /* {{{ */
 {
 	hr->pending_probes--;
 	if(iface_is_star(iff)) {
-		iface_destroy(iff);	
+		iface_destroy(iff);
 		return;
 	}
 
@@ -324,6 +333,11 @@ static struct pathhop * hopremap_build_hop(const struct hopremap *hr) /* {{{ */
 	for(ip = pavl_t_first(&trav, hr->ips); ip; ip = pavl_t_next(&trav)) {
 		char addr[INET_ADDRSTRLEN];
 		inet_ntop(AF_INET, ip, addr, INET_ADDRSTRLEN);
+		double rttmin = 1e100;
+		double rttmax = 0;
+		double sx = 0;
+		double ssx = 0;
+		int n = 0;
 
 		const void *key;
 		struct iface *iff;
@@ -334,11 +348,20 @@ static struct pathhop * hopremap_build_hop(const struct hopremap *hr) /* {{{ */
 			if(iface_ip(iff) != *ip) continue;
 			int clen = strlen(idstr);
 			snprintf(idstr + clen, 256 - clen - 1, "%d,", *(int *)key);
+			double rtt = iface_rttavg(iff);
+			assert(rtt > 0);
+			rttmin = (rttmin < rtt) ? rttmin : rtt;
+			rttmax = (rttmax > rtt) ? rttmax : rtt;
+			sx += rtt;
+			ssx += (rtt * rtt);
+			n++;
 		}
 		idstr[strlen(idstr)-1] = '\0'; /* removing last comma */
 
-		snprintf(str+strlen(str), 4096-strlen(str), "%s:%s:0.0,0.0,0.0,0.0:;",
-				addr, idstr);
+		snprintf(str+strlen(str), 4096-strlen(str),
+				"%s:%s:%.2f,%.2f,%.2f,%.2f:;",
+				addr, idstr, rttmin, sx/n, rttmax,
+				(ssx/n - (sx/n)*(sx/n)));
 	}
 
 	str[strlen(str)-1] = '\0'; /* removing last semicolon */

@@ -34,7 +34,7 @@ struct remap {
 	int shifts[MAX_PATH_LENGTH];
 };
 
-static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall);
+static int remap_local(struct remap *rmp, int ttl, int minttl, int first);
 static void remap_binary(struct remap *rmp, int l, int r);
 
 static struct remap * remap_create(const struct opts *opts);
@@ -60,9 +60,8 @@ void remap(const struct opts *opts) /* {{{ */
 
 	struct pathhop *hop = remap_get_hop(rmp, rmp->startttl);
 
-	// Unresponsive hop potential fix
 	while(pathhop_is_star(hop) && rmp->startttl > 0) {
-		logd(LOG_INFO, "%s: unresponsive hop, will check the one before\n", __func__); 
+		logd(LOG_INFO, "%s: unresp hop, decreasing ttl\n", __func__);
 		rmp->startttl--;
 		hop = remap_get_hop(rmp, rmp->startttl);
 	}
@@ -79,7 +78,7 @@ void remap(const struct opts *opts) /* {{{ */
 		remap_local(rmp, rmp->startttl, 0, 1);
 	} else {
 		logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
-		remap_binary(rmp, 0, rmp->startttl);	
+		remap_binary(rmp, 0, rmp->startttl);
 	}
 
 	remap_print_result(rmp);
@@ -93,7 +92,8 @@ void remap(const struct opts *opts) /* {{{ */
 	printf("remap failed. (try checking the logs)\n");
 } /* }}} */
 
-static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /* {{{ */
+static int remap_local(struct remap *rmp, int ttl, int minttl, /* {{{ */
+		int first)
 {
 	struct pathhop *hop;
 	int branch = ttl;
@@ -105,22 +105,22 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /*
 		branch--;
 	} while(pathhop_is_star(hop) ||
 			path_search_hop(rmp->path, hop, 0) == -1);
-	int p1branch = path_search_hop(rmp->path, hop, 0);	
+	int p1branch = path_search_hop(rmp->path, hop, 0);
 	branch++;
 
 	int join = ttl + 1;
 	int join_last_responsive = ttl;
 	do {
 		if(join > MAX_PATH_LENGTH-1) {
-			logd(LOG_DEBUG, "path too long\n");	
+			logd(LOG_DEBUG, "path too long\n");
 		}
-		if((join - join_last_responsive > 4) && firstCall) {
+		if((join - join_last_responsive > 4) && first) {
 			/* there may be responsive hops after join if
 			 * remap_local was called from the binsearch
-			 * method.  first_call checks this is not
+			 * method.  first checks this is not
 			 * the case before exiting. */
 			logd(LOG_DEBUG, "too many STARs\n");
-			break; 
+			break;
 		}
 		logd(LOG_INFO, "%s: looking for join at ttl %d\n", __func__,
 				join);
@@ -131,7 +131,7 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int firstCall) /*
 			logd(LOG_DEBUG, "hop contains dst\n");
 			break;
 		}
-	} while((pathhop_is_star(hop) || 
+	} while((pathhop_is_star(hop) ||
 			path_search_hop(rmp->path, hop, 0) < p1branch) &&
 			join < MAX_PATH_LENGTH);
 	join--;
@@ -167,7 +167,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 		}
 		if(i == l) {
 			/* STARs made us reach the left limit, fallback */
-			r = remap_local(rmp, (l + r)/2, l, 0);	
+			r = remap_local(rmp, (l + r)/2, l, 0);
 			break;
 		}
 
@@ -176,7 +176,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 				i, p1ttl, rmp->shifts[i]);
 		if((i - p1ttl) == rmp->shifts[i]) {
 			/* hop at expected position, change is to the right */
-			l = i;	
+			l = i;
 			p1left = p1ttl;
 		} else if((p1left <= p1ttl) && (p1ttl <= p1right)) {
 			/* hop at the wrong position; checking p1left and
@@ -264,72 +264,55 @@ static void remap_destroy(struct remap *rmp) /* {{{ */
 static void remap_print_result(const struct remap *rmp) /* {{{ */
 {
 	struct pavl_traverser trav;
-	struct pathhop *hop = pavl_t_first(&trav, rmp->db->hops);
-
 	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
 	char *hstr, *buf;
 
-	if(!inet_ntop(AF_INET, path_srcptr(rmp->path), src, INET_ADDRSTRLEN)) goto out;
-	if(!inet_ntop(AF_INET, path_dstptr(rmp->path), dst, INET_ADDRSTRLEN)) goto out;
+	if(!inet_ntop(AF_INET, path_srcptr(rmp->path), src, INET_ADDRSTRLEN)) {
+		logea(__FILE__, __LINE__, NULL);
+	}
+	if(!inet_ntop(AF_INET, path_dstptr(rmp->path), dst, INET_ADDRSTRLEN)) {
+		logea(__FILE__, __LINE__, NULL);
+	}
 
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
 	unsigned time = ts.tv_sec;
 
+	int bufsz = PATH_STR_BUF - 1;
 	hstr = malloc(PATH_STR_BUF);
 	if(!hstr) logea(__FILE__, __LINE__, NULL);
 	hstr[0] = '\0';
 
-	if(path_length(rmp->path) > 0) {
-		int ttl_lin = 0, ttl_var = 0;
-		int bufsz = PATH_STR_BUF - 1;
-
-		while(ttl_var < path_length(rmp->path)) {
-			if (ttl_lin == pathhop_ttl(hop) && hop != NULL) {
-				char *s = pathhop_tostr(hop);
-				strncat(hstr, s, bufsz);
-				bufsz -= strlen(s);
-				free(s);
-				bufsz = (bufsz < 0) ? 0 : bufsz;
-				strncat(hstr, "|", bufsz);
-				bufsz--;
-				bufsz = (bufsz < 0) ? 0 : bufsz;
-				ttl_lin++;
-				if (pathhop_ttl(pavl_t_next(&trav)) != ttl_lin) {
-					if (pathhop_is_star(hop)) break;
-					ttl_var = path_search_hop(rmp->path, hop, 0) + 1;
-				}
-				hop = pavl_t_cur(&trav);
-			}
-			else {
-				char *s = pathhop_tostr(pathhop_get_hop(rmp->path, ttl_var));
-				strncat(hstr, s, bufsz);
-				bufsz -= strlen(s);
-				free(s);
-				bufsz = (bufsz < 0) ? 0 : bufsz;
-				strncat(hstr, "|", bufsz);
-				bufsz--;
-				bufsz = (bufsz < 0) ? 0 : bufsz;
-				ttl_lin++; ttl_var++;
-			}
+	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
+	for(int i = 0; i < path_length(rmp->path); i++) {
+		assert(!rmphop || pathhop_ttl(rmphop) >= i);
+		struct pathhop *strhop;
+		if(rmphop && pathhop_ttl(rmphop) == i) {
+			strhop = rmphop;
+			rmphop = pavl_t_next(&trav);
+		} else {
+			strhop = pathhop_get_hop(rmp->path, i);
 		}
 
-		assert(*(strchr(hstr, '\0') - 1) == '|');
-		*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
+		char *s = pathhop_tostr(strhop);
+		strncat(hstr, s, bufsz);
+		bufsz -= strlen(s);
+		bufsz = (bufsz < 0) ? 0 : bufsz;
+		strncat(hstr, "|", bufsz);
+		bufsz--;
+		bufsz = (bufsz < 0) ? 0 : bufsz;
+		free(s);
 	}
+
+	assert(*(strchr(hstr, '\0') - 1) == '|');
+	*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
 
 	buf = malloc(PATH_STR_BUF);
 	if(!buf) logea(__FILE__, __LINE__, NULL);
 	snprintf(buf, PATH_STR_BUF, "%s %s %d %s", src, dst, time, hstr);
+	printf("%s\n", buf);
 	free(hstr);
-	printf("%s\n\n", buf);
 	free(buf);
-
-	return;
-
-	out:
-	logd(LOG_FATAL, "%s:%d: IP conversion error.\n", __FILE__, __LINE__);
-	return;
 } /* }}} */
 
 struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
