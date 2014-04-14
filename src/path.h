@@ -79,6 +79,7 @@ uint32_t iface_ip(const struct iface *iface);
 int iface_ttl(const struct iface *iface);
 int iface_first_flowid(const struct iface *iface);
 int iface_random_flowid(const struct iface *iface);
+double iface_rttavg(const struct iface *iface);
 
 int iface_cmp_ip(const void *v1, const void *v2);
 int iface_cmp_ip_data(const void *v1, const void *v2, void *dummy);

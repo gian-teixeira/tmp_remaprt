@@ -825,6 +825,8 @@ int iface_ttl(const struct iface *iface) { return iface->ttl; }
 
 int iface_first_flowid(const struct iface *iface) { return iface->flowids[0]; }
 
+double iface_rttavg(const struct iface *iface) { return iface->rttavg; }
+
 int iface_random_flowid(const struct iface *iface) { /* {{{ */
 	int i = drand48() * iface->nflowids;
 	return iface->flowids[i];
