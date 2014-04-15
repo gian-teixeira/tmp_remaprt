@@ -1,3 +1,15 @@
+/* This module creates a unique log handler for a program.  It supports several
+ * helper functions to handle logging of error messages.  This module uses the
+ * cyclic file handle module (cyc) to create thread-safe rotating files.  The
+ * interface is as follows:
+ *
+ * (1) initialize the log handler using =log_init=
+ * (2) print messages to the file using =logd=, =loge=, and =logea=
+ * (3) destroy the logging handler with =log_destroy= when you are done.
+ *
+ * This code is copyrighted by Italo Cunha (cunha@dcc.ufmg.br) and released
+ * under the latest version of the GPL. */
+
 #ifndef __LOG_HEADER__
 #define __LOG_HEADER__
 
@@ -9,34 +21,35 @@
 #define LOG_INFO 100
 #define LOG_EXTRA 1000
 
-/* initializes the global logger. verbosity specifies what gets printed. path
- * is where the log will be saved. nbackups say how many backups you want to
- * keep. filesize specifies the maximum log file size before creating a new
- * one. returns 0 on success, 1 otherwise. */
-void log_init(unsigned verbosity, const char *path, unsigned nbackups,
-		unsigned filesize);
+/* This function initializes the global logger.  The parameter =verbosity=
+ * specifies what gets printed; calls to =logd=, =loge=, and =logea= with lower
+ * =verbosity= values will print messages.  The variable =prefix= controls the
+ * log files prefix (can include an absolute path).  The =nbackups= and
+ * =maxsize= specify the number of rotating log files and their maximum size,
+ * respectively. */
+void log_init(unsigned verbosity, const char *prefix, unsigned nbackups,
+		unsigned maxsize);
 
 void log_destroy(void);
-
-/* writes all log messages to disk. */
 void log_flush(void);
 
-/* fmt and ... work like in printf. this function only prints the message if
- * verbosity is less that the value passed to log_init. */
+/* This function functions like printf and logs a message if its =verbosity= is
+ * lower than that passed to =log_init=. */
 void logd(unsigned verbosity, const char *fmt, ...);
 
-/* if ernno is set, prints the file name, the line number, and the standard
- * error message. does nothing if errno is not set. */
+/* This functions prints an error message (built with strerror) if =ernno= is
+ * set and its =verbosity= value is lower than that passed to =log_init=.  It
+ * would be called with the file name and line number where the error occurred
+ * (use the __FILE__ and __LINE__ macros). */
 void loge(unsigned verbosity, const char *file, int lineno);
 
-/* if ernno is set, prints the file name and line number, the error message,
- * then exits the program. does nothing if errno is not set. */
-void logea(const char *file, int lineno, const char *msg);
+/* Like loge, except it always prints the error message if =errno= is set.
+ * This function also prints =msg= and calls =exit= to end the program. */
+void logea(const char *file, int lineno, const char *msg)
+	__attribute__((noreturn));
 
-/* logs the IP address in dotted-decimal format. */
-void logip(unsigned verbosity, uint32_t ip);
-
-/* returns 1 if verbosity would result in messages being printed. */
+/* This function returns a nonzero value if its =verbosity= value is lower than
+ * that passed to =log_init=. */
 int log_true(unsigned verbosity);
 
 #endif

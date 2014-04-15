@@ -95,9 +95,8 @@ int sender_send_icmp(struct sender *sender, uint32_t dst, uint8_t ttl, /* {{{ */
 	
 	out:
 	loge(LOG_FATAL, __FILE__, __LINE__);
-	logd(LOG_DEBUG, "%s ", __func__);
-	logip(LOG_DEBUG, dst);
-	logd(LOG_DEBUG, " %d %d error: %s\n", ttl, checksum, libnet_geterror(ln));
+	logd(LOG_DEBUG, "%s %d %d error: %s\n", __func__, ttl, checksum,
+			libnet_geterror(ln));
 	libnet_clear_packet(ln);
 	sender->icmptag = 0;
 	sender->iptag = 0;

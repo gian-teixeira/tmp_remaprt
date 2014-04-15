@@ -187,26 +187,23 @@ static void prober_hop_process(struct confirm_query *q) /* {{{ */
 static struct iface * prober_parse(struct confirm_query *q) /* {{{ */
 {
 	char ifstr[128];
-	char addr[INET_ADDRSTRLEN];
+	char daddr[INET_ADDRSTRLEN] = "0.0.0.0";
+	char haddr[INET_ADDRSTRLEN] = "0.0.0.0";
 	struct timespec tstamp, rttts;
 
-	logd(LOG_EXTRA, "query dst ");
-	logip(LOG_EXTRA, q->dst);
-	logd(LOG_EXTRA, " ttl %d flowid %d -> ", q->ttl, q->flowid);
-	logip(LOG_EXTRA, q->ip);
-	logd(LOG_EXTRA, "\n");
+	inet_ntop(AF_INET, &(q->dst), daddr, INET_ADDRSTRLEN);
+	inet_ntop(AF_INET, &(q->ip), haddr, INET_ADDRSTRLEN);
+	logd(LOG_EXTRA, "query dst %s ttl %d flowid %d -> %s\n", daddr,
+			q->ttl, q->flowid, haddr);
 
-
-	inet_ntop(AF_INET, &(q->ip), addr, INET_ADDRSTRLEN);
 	if(clock_gettime(CLOCK_REALTIME, &tstamp)) goto out_error;
 
 	timespec_sub(tstamp, q->start, &rttts);
 	double rtt = timespec_todouble(rttts) * 1000;
 
-	snprintf(ifstr, 128, "%s:%d:%.2f,%.2f,%.2f,%.2f:", addr, q->flowid,
+	snprintf(ifstr, 128, "%s:%d:%.2f,%.2f,%.2f,%.2f:", haddr, q->flowid,
 			rtt, rtt, rtt, rtt);
 	struct iface *iff = iface_create_str(ifstr, tstamp, q->ttl);
-
 
 	return iff;
 

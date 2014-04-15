@@ -22,7 +22,6 @@ struct cyclic {
 	unsigned period;
 	time_t period_start;
 	FILE *file;
-	int file_locked;
 	pthread_mutex_t mutex;
 };
 
@@ -38,21 +37,22 @@ struct cyclic * cyc_init_periodic(const char *prefix, unsigned period) /* {{{ */
 	struct cyclic *cyc;
 	if(period == 0) return NULL;
 	cyc = (struct cyclic *)malloc(sizeof(struct cyclic));
-	if(!cyc) return NULL;
+	if(!cyc) goto out;
 	cyc->type = CYC_PERIODIC;
 	cyc->prefix = strdup(prefix);
+	if(!cyc->prefix) goto out;
 	cyc->nbackups = -1;
 	cyc->maxsize = -1;
 	cyc->period = period;
 	cyc->period_start = 0;
 	cyc->file = NULL;
-	cyc->file_locked = 0;
 	if(pthread_mutex_init(&(cyc->mutex), NULL)) goto out;
 	return cyc;
 
 	out:
 	perror("cyc_init_periodic");
-	free(cyc);
+	if(cyc && cyc->prefix) free(cyc->prefix);
+	if(cyc) free(cyc);
 	return NULL;
 } /* }}} */
 
@@ -62,28 +62,33 @@ struct cyclic * cyc_init_filesize(const char *prefix, /* {{{ */
 	struct cyclic *cyc;
 	if(maxsize == 0) return NULL;
 	cyc = (struct cyclic *)malloc(sizeof(struct cyclic));
-	if(!cyc) return NULL;
+	if(!cyc) goto out;
 	cyc->type = CYC_FILESIZE;
 	cyc->prefix = strdup(prefix);
+	if(!cyc->prefix) goto out;
 	cyc->nbackups = nbackups;
 	cyc->maxsize = maxsize;
 	cyc->period = -1;
 	cyc->period_start = -1;
 	cyc->file = NULL;
-	cyc->file_locked = 0;
 	if(pthread_mutex_init(&(cyc->mutex), NULL)) goto out;
-	cyc_open_filesize(cyc);
 	return cyc;
 
 	out:
 	perror("cyc_init_filesize");
-	free(cyc);
+	if(cyc && cyc->prefix) free(cyc->prefix);
+	if(cyc) free(cyc);
 	return NULL;
 } /* }}} */
 
 void cyc_destroy(struct cyclic *cyc) /* {{{ */
 {
-	if(cyc->file) fclose(cyc->file);
+	if(cyc->file) {
+		int oldstate;
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
+		fclose(cyc->file);
+		pthread_setcancelstate(oldstate, &oldstate);
+	}
 	pthread_mutex_destroy(&(cyc->mutex));
 	free(cyc->prefix);
 	free(cyc);
@@ -93,14 +98,17 @@ int cyc_printf(struct cyclic *cyc, const char *fmt, ...) /* {{{ */
 {
 	char line[CYCLIC_LINEBUF];
 	va_list ap;
+	int oldstate;
 	int cnt = 0;
 	va_start(ap, fmt);
 	pthread_mutex_lock(&cyc->mutex);
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
 	if(cyc_check_open_file(cyc)) {
 		vsnprintf(line, CYCLIC_LINEBUF, fmt, ap);
-		cnt = fprintf(cyc->file, line);
+		cnt = fputs(line, cyc->file);
 		fflush(cyc->file);
 	}
+	pthread_setcancelstate(oldstate, &oldstate);
 	pthread_mutex_unlock(&cyc->mutex);
 	va_end(ap);
 	return cnt;
@@ -109,36 +117,32 @@ int cyc_printf(struct cyclic *cyc, const char *fmt, ...) /* {{{ */
 int cyc_vprintf(struct cyclic *cyc, const char *fmt, va_list ap) /* {{{ */
 {
 	char line[CYCLIC_LINEBUF];
+	int oldstate;
 	int cnt = 0;
 	pthread_mutex_lock(&cyc->mutex);
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
 	if(cyc_check_open_file(cyc)) {
 		vsnprintf(line, CYCLIC_LINEBUF, fmt, ap);
-		cnt = fprintf(cyc->file, line);
+		cnt = fputs(line, cyc->file);
 		fflush(cyc->file);
 	}
+	pthread_setcancelstate(oldstate, &oldstate);
 	pthread_mutex_unlock(&cyc->mutex);
 	return cnt;
 } /* }}} */
 
 void cyc_flush(struct cyclic *cyc) /* {{{ */
 {
+	int oldstate;
 	pthread_mutex_lock(&cyc->mutex);
 	if(!cyc->file) {
 		pthread_mutex_unlock(&cyc->mutex);
 		return;
 	}
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
 	fflush(cyc->file);
+	pthread_setcancelstate(oldstate, &oldstate);
 	pthread_mutex_unlock(&cyc->mutex);
-} /* }}} */
-
-void cyc_lock_file(struct cyclic *cyc) /* {{{ */
-{
-	cyc->file_locked = 1;
-} /* }}} */
-
-void cyc_unlock_file(struct cyclic *cyc) /* {{{ */
-{
-	cyc->file_locked = 0;
 } /* }}} */
 
 /*****************************************************************************
@@ -146,7 +150,6 @@ void cyc_unlock_file(struct cyclic *cyc) /* {{{ */
  ****************************************************************************/
 static int cyc_check_open_file(struct cyclic *cyc) /* {{{ */
 {
-	if(cyc->file_locked) return 1;
 	switch(cyc->type) {
 		case CYC_PERIODIC: {
 			unsigned now = time(NULL);
@@ -156,7 +159,7 @@ static int cyc_check_open_file(struct cyclic *cyc) /* {{{ */
 			break;
 		}
 		case CYC_FILESIZE: {
-			if(ftell(cyc->file) > cyc->maxsize) {
+			if(!cyc->file || ftell(cyc->file) > cyc->maxsize) {
 				return cyc_open_filesize(cyc);
 			}
 			break;
