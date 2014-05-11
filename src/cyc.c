@@ -22,7 +22,9 @@ struct cyclic {
 	unsigned period;
 	time_t period_start;
 	FILE *file;
+	pthread_mutex_t lock;
 	pthread_mutex_t mutex;
+	int flock;
 };
 
 static int cyc_check_open_file(struct cyclic *cyc);
@@ -46,7 +48,9 @@ struct cyclic * cyc_init_periodic(const char *prefix, unsigned period) /* {{{ */
 	cyc->period = period;
 	cyc->period_start = 0;
 	cyc->file = NULL;
+	if(pthread_mutex_init(&(cyc->lock), NULL)) goto out;
 	if(pthread_mutex_init(&(cyc->mutex), NULL)) goto out;
+	cyc->flock = 0;
 	return cyc;
 
 	out:
@@ -57,7 +61,7 @@ struct cyclic * cyc_init_periodic(const char *prefix, unsigned period) /* {{{ */
 } /* }}} */
 
 struct cyclic * cyc_init_filesize(const char *prefix, /* {{{ */
-		unsigned nbackups, unsigned maxsize) 
+		unsigned nbackups, unsigned maxsize)
 {
 	struct cyclic *cyc;
 	if(maxsize == 0) return NULL;
@@ -71,7 +75,9 @@ struct cyclic * cyc_init_filesize(const char *prefix, /* {{{ */
 	cyc->period = -1;
 	cyc->period_start = -1;
 	cyc->file = NULL;
+	if(pthread_mutex_init(&(cyc->lock), NULL)) goto out;
 	if(pthread_mutex_init(&(cyc->mutex), NULL)) goto out;
+	cyc->flock = 0;
 	return cyc;
 
 	out:
@@ -145,11 +151,28 @@ void cyc_flush(struct cyclic *cyc) /* {{{ */
 	pthread_mutex_unlock(&cyc->mutex);
 } /* }}} */
 
+void cyc_file_lock(struct cyclic *cyc)/*{{{*/
+{
+	pthread_mutex_lock(&cyc->lock);
+	pthread_mutex_lock(&cyc->mutex);
+	cyc->flock = 1;
+	pthread_mutex_unlock(&cyc->mutex);
+}/*}}}*/
+
+void cyc_file_unlock(struct cyclic *cyc)/*{{{*/
+{
+	pthread_mutex_lock(&cyc->mutex);
+	cyc->flock = 0;
+	pthread_mutex_unlock(&cyc->mutex);
+	pthread_mutex_unlock(&cyc->lock);
+}/*}}}*/
+
 /*****************************************************************************
  * static function implementations
  ****************************************************************************/
 static int cyc_check_open_file(struct cyclic *cyc) /* {{{ */
 {
+	if(cyc->flock && cyc->file) return 1;
 	switch(cyc->type) {
 		case CYC_PERIODIC: {
 			unsigned now = time(NULL);
