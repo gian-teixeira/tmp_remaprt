@@ -18,8 +18,6 @@
 #include "timespec.h"
 #include "confirm.h"
 
-#define CONFIRM_DSTPORT 51359
-
 #define EVENT_QUERY 1
 #define EVENT_SENDPACKET 2
 #define EVENT_TIMEOUT 3
@@ -57,6 +55,7 @@ static uint16_t id2checksum[] = {
  * declarations
  ****************************************************************************/
 struct confirm {
+	uint16_t icmpid;
 	pthread_t thread;
 	pthread_mutex_t evlist_mut;
 	struct dlist *evlist;
@@ -75,7 +74,7 @@ struct event {
 static void * confirm_thread(void *vconfirm);
 static int confirm_recv(const struct packet *packet, void *confirm);
 static int confirm_recv_parse(const struct packet *pkt, uint32_t *dst,
-	       uint8_t *ttl, uint8_t *flowid, uint32_t *ip);
+	       uint8_t *ttl, uint8_t *flowid, uint32_t *ip, uint16_t icmpid);
 static void confirm_sendevent(struct confirm *confirm, struct event *ev);
 
 static void confirm_mutex_unlock(void *vmutex);
@@ -88,12 +87,12 @@ static int event_cmp(const void *a, const void *b, void *dummy);
 static int event_cmp(const void *a, const void *b, void *dummy);
 
 static void event_run(struct confirm *confirm, struct event *event);
-static void event_run_schednext(struct confirm *conf, 
+static void event_run_schednext(struct confirm *conf,
 		struct confirm_query *query);
 static void event_run_query(struct confirm *conf, struct event *ev);
 static void event_run_sendpacket(struct confirm *conf, struct event *ev);
 static void event_run_timeout(struct confirm *conf, struct event *ev);
-static int event_run_answer_testtimeout(const struct confirm_query *query, 
+static int event_run_answer_testtimeout(const struct confirm_query *query,
 		struct timespec packet);
 static void event_run_answer(struct confirm *conf, struct event *ev);
 
@@ -106,20 +105,22 @@ static void confirm_data_unpack(uint16_t data, uint8_t *ttl, uint8_t *flowid);
 /*****************************************************************************
  * public functions
  ****************************************************************************/
-struct confirm * confirm_create(const char *device) /* {{{ */
+struct confirm * confirm_create(const char *device, uint16_t icmpid) /* {{{ */
 {
 	struct confirm *confirm;
 
 	confirm = malloc(sizeof(struct confirm));
 	if(!confirm) logea(__FILE__, __LINE__, NULL);
-	confirm->events = pavl_create(event_cmp, NULL, NULL);	
+	confirm->icmpid = icmpid;
+
+	confirm->events = pavl_create(event_cmp, NULL, NULL);
 	if(!confirm->events) goto out;
 	confirm->queries = pavl_create(query_cmp, NULL, NULL);
 	if(!confirm->queries) goto out_events;
 
 	pthread_mutex_init(&confirm->evlist_mut, NULL);
 	pthread_cond_init(&confirm->event_cond, NULL);
-	
+
 	confirm->evlist = dlist_create();
 	if(!confirm->evlist) goto out_cond;
 
@@ -132,7 +133,7 @@ struct confirm * confirm_create(const char *device) /* {{{ */
 	demux_listener_add(confirm_recv, confirm);
 
 	logd(LOG_INFO, "%s dev=%s ok\n", __func__, device);
-	return confirm; 
+	return confirm;
 
 	out_sender:
 	loge(LOG_DEBUG, __FILE__, __LINE__);
@@ -190,7 +191,7 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 {
 	logd(LOG_INFO, "%s started\n", __func__);
 	struct confirm *confirm = (struct confirm *)vconfirm;
-	
+
 	while(1) {
 		int code;
 		struct event *ev;
@@ -200,7 +201,7 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 			struct event *evv = dlist_pop_left(confirm->evlist);
 			pthread_mutex_unlock(&confirm->evlist_mut);
 			if(!evv) logea(__FILE__, __LINE__, "list empty");
-			assert(evv->type == EVENT_QUERY || 
+			assert(evv->type == EVENT_QUERY ||
 					evv->type == EVENT_ANSWER);
 			event_run(confirm, evv);
 			event_destroy(evv);
@@ -217,7 +218,7 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 		} else {
 			struct pavl_traverser trav;
 			ev = pavl_t_first(&trav, confirm->events);
-			code = pthread_cond_timedwait(&confirm->event_cond, 
+			code = pthread_cond_timedwait(&confirm->event_cond,
 					&confirm->evlist_mut, &ev->time);
 		}
 		pthread_cleanup_pop(0);
@@ -250,13 +251,13 @@ static void confirm_sendevent(struct confirm *confirm, struct event *ev) /* {{{ 
 
 static int confirm_recv(const struct packet *pkt, void *vconfirm) /* {{{ */
 {
-	struct confirm *confirm = (struct confirm *)vconfirm;
+	struct confirm *conf = (struct confirm *)vconfirm;
 	struct confirm_query *query;
 	struct event *event;
 	uint32_t dst, ip;
 	uint8_t ttl, flowid;
 
-	if(!confirm_recv_parse(pkt, &dst, &ttl, &flowid, &ip)) {
+	if(!confirm_recv_parse(pkt, &dst, &ttl, &flowid, &ip, conf->icmpid)) {
 		return 1;
 	}
 
@@ -265,12 +266,12 @@ static int confirm_recv(const struct packet *pkt, void *vconfirm) /* {{{ */
 	query->answertime = pkt->tstamp;
 	event = event_create(EVENT_ANSWER, query);
 
-	confirm_sendevent(confirm, event);
+	confirm_sendevent(conf, event);
 	return 0;
 } /* }}} */
 
-static int confirm_recv_parse(const struct packet *pkt, uint32_t *dst, /* {{{ */
-	       uint8_t *ttl, uint8_t *flowid, uint32_t *ip)
+static int confirm_recv_parse(const struct packet *pkt, uint32_t *dst, /*{{{*/
+	       uint8_t *ttl, uint8_t *flowid, uint32_t *ip, uint16_t icmpid)
 {
 	struct libnet_ipv4_hdr *rip;
 	struct libnet_icmpv4_hdr *ricmp;
@@ -283,14 +284,14 @@ static int confirm_recv_parse(const struct packet *pkt, uint32_t *dst, /* {{{ */
 
 	if(pkt->icmp->icmp_type == ICMP_ECHOREPLY) {
 		*dst = pkt->ip->ip_src.s_addr;
-		if(ntohs(pkt->icmp->icmp_id) != CONFIRM_DSTPORT) return 0;
+		if(ntohs(pkt->icmp->icmp_id) != icmpid) return 0;
 		uint16_t data = ntohs(pkt->icmp->icmp_seq);
 		confirm_data_unpack(data, ttl, flowid);
 		return 1;
 	} else if(pkt->icmp->icmp_type == ICMP_TIMXCEED) {
 		*dst = rip->ip_dst.s_addr;
 		if(pkt->icmp->icmp_code != ICMP_TIMXCEED_INTRANS) return 0;
-		if(ntohs(ricmp->icmp_id) != CONFIRM_DSTPORT) return 0;
+		if(ntohs(ricmp->icmp_id) != icmpid) return 0;
 		uint16_t data = ntohs(ricmp->icmp_seq);
 		confirm_data_unpack(data, ttl, flowid);
 		return 1;
@@ -325,7 +326,7 @@ static void event_destroy_void(void *ev)
 	event_destroy(ev);
 }
 
-static void event_destroy_pavl(void *event, void *dummy) 
+static void event_destroy_pavl(void *event, void *dummy)
 {
 	event_destroy((struct event *)event);
 }
@@ -370,14 +371,14 @@ static void event_run(struct confirm *confirm, struct event *event)
 	}
 }
 
-static void event_run_schednext(struct confirm *conf, 
+static void event_run_schednext(struct confirm *conf,
 		struct confirm_query *query)
 {
 	struct event *newev;
 	if(query->trynum < query->ntries) {
 		newev = event_create(EVENT_SENDPACKET, query);
 		query->event = newev;
-		if(query->probetime.tv_sec == 0 
+		if(query->probetime.tv_sec == 0
 				&& query->probetime.tv_nsec == 0) {
 			newev->time = query->start;
 			event_run_sendpacket(conf, newev);
@@ -386,7 +387,7 @@ static void event_run_schednext(struct confirm *conf,
 			double rand = drand48() - 0.5;
 			timespec_add(query->lastpkt, query->probetime,
 					&newev->time);
-			timespec_shift(query->probetime, 
+			timespec_shift(query->probetime,
 					rand * 0, /* shifting disabled */
 					&newev->time);
 			pavl_assert_insert(conf->events, newev);
@@ -441,8 +442,8 @@ static void event_run_sendpacket(struct confirm *conf, struct event *ev)
 
 	data = confirm_data_pack(query->ttl, query->flowid);
 
-	sender_send_icmp(conf->sender, query->dst, query->ttl, 
-		checksum, CONFIRM_DSTPORT, data);
+	sender_send_icmp(conf->sender, query->dst, query->ttl,
+		checksum, conf->icmpid, data);
 
 	query->trynum++;
 	query->lastpkt = ev->time;
@@ -458,7 +459,7 @@ static void event_run_timeout(struct confirm *conf, struct event *ev)
 	query->cb(query);
 }
 
-static int event_run_answer_testtimeout(const struct confirm_query *query, 
+static int event_run_answer_testtimeout(const struct confirm_query *query,
 		struct timespec packet)
 {
 	struct timespec timeout, aux;
@@ -484,7 +485,7 @@ static void event_run_answer(struct confirm *conf, struct event *ev)
 	if(!event_run_answer_testtimeout(query, ev->query->answertime)) {
 		goto out;
 	}
-	
+
 	query->ip = ev->query->ip;
 	query->answertime = ev->query->answertime;
 	confirm_query_destroy(ev->query);

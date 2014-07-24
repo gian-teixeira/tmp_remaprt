@@ -22,6 +22,7 @@ printf("\t-i IFNAME\tName of the interface to use (e.g., eth0).\n");
 printf("\t-p STR\t\tHOPSTR containing the old path (see below).\n");
 printf("\t-d DST\t\tIP address of the destination.\n");
 printf("\t-t TTL\t\tTTL where to start the remap (where IPADDR is located).\n");
+printf("\t-x ICMPID\tThe ICMP ID used to identify probes.\n");
 printf("\t-l LOGBASE\tBase name for the log file.\n");
 printf("\n");
 printf("HOPSTR := HOP|HOP|...|HOP\n");
@@ -47,7 +48,7 @@ struct opts * opts_parse(int argc, char **argv) /* {{{ */
 	opts->dst = 0;
 	opts->ttl = 0;
 
-	char *optstring = "i:p:d:t:l:h";
+	char *optstring = "i:p:d:t:l:x:h";
 
 	while((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
@@ -69,6 +70,12 @@ struct opts * opts_parse(int argc, char **argv) /* {{{ */
 			int ttl = atoi(optarg);
 			if(ttl == 0 || ttl > UINT8_MAX) goto out_eval;
 			opts->ttl = (uint8_t)ttl;
+			break;
+		}
+		case 'x': {
+			int icmpid = atoi(optarg);
+			if(icmpid == 0 || icmpid > UINT16_MAX) goto out_eval;
+			opts->icmpid = (uint16_t)icmpid;
 			break;
 		}
 		case 'l': {

@@ -20,7 +20,7 @@ struct confirm_query {
 	/* answer fields. ip unset and trynum == ntries+1 if no answer: */
 	uint32_t ip;
 	uint8_t trynum;
-	
+
 	struct timespec probetime;
 	struct timespec timeout;
 	struct timespec start;
@@ -33,7 +33,7 @@ struct confirm;
 typedef void confirm_query_cb(struct confirm_query *query);
 
 /* will open a libnet sender on the given device and wait for queries. */
-struct confirm * confirm_create(const char *device);
+struct confirm * confirm_create(const char *device, uint16_t icmpid);
 void confirm_destroy(struct confirm *confirm);
 
 void confirm_query(struct confirm *confirm, struct confirm_query *query);

@@ -2,6 +2,7 @@
 #define __PROBER_H__
 
 #include <inttypes.h>
+#include "opts.h"
 #include "path.h"
 
 struct prober;
@@ -10,7 +11,7 @@ typedef void (*prober_cb_hop)(uint8_t ttl, struct pathhop *hop, void *data);
 typedef void (*prober_cb_iface)(uint8_t ttl, uint8_t flowid, struct iface *i,
 		void *data);
 
-struct prober * prober_create(const char *dev, uint32_t dst,
+struct prober * prober_create(const struct opts *opts,
 		prober_cb_hop hop_cb, prober_cb_iface iface_cb, void *cb_data);
 void prober_destroy(struct prober *p);
 

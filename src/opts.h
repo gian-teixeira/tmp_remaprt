@@ -10,6 +10,7 @@ struct opts {
 	char *logbase;
 	uint32_t dst;
 	uint8_t ttl;
+	uint16_t icmpid;
 };
 
 /* prints command line parameter information. */

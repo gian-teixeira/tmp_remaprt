@@ -27,7 +27,7 @@ static uint16_t sender_balance_checksum(uint16_t typecode, uint16_t checksum,
  * public implementations
  ****************************************************************************/
 struct sender * sender_create(const char *device) /* {{{ */
-{	
+{
 	char errbuf[LIBNET_ERRBUF_SIZE];
 	char *dev;
 	struct sender *sender;
@@ -46,8 +46,8 @@ struct sender * sender_create(const char *device) /* {{{ */
 	logd(LOG_INFO, "%s dev=%s ok\n", __func__, device);
 
 	return sender;
-	
-	out_libnet:	
+
+	out_libnet:
 	loge(LOG_FATAL, __FILE__, __LINE__);
 	logd(LOG_FATAL, "%s: %s", __func__, errbuf);
 	free(sender);
@@ -62,19 +62,19 @@ void sender_destroy(struct sender *sender) /* {{{ */
 	free(sender);
 } /* }}} */
 
-int sender_send_icmp(struct sender *sender, uint32_t dst, uint8_t ttl, /* {{{ */
+int sender_send_icmp(struct sender *sender, uint32_t dst, uint8_t ttl, /*{{{*/
 		uint16_t checksum, uint16_t id, uint16_t seq)
 {
 	uint16_t payload;
 	libnet_t *ln = sender->ln;
 
- 	// icmp type + icmp code
+	// icmp type + icmp code
 	char buf[2] = {ICMP_ECHO, 0};
 	uint16_t *typecodeptr = (uint16_t *)buf;
 	uint16_t typecode = *typecodeptr;
 
 	payload = sender_balance_checksum(typecode, checksum, id, seq);
-	sender->icmptag = libnet_build_icmpv4_echo(ICMP_ECHO, 0, 
+	sender->icmptag = libnet_build_icmpv4_echo(ICMP_ECHO, 0,
 			checksum, id, seq, (uint8_t *)&payload, 2,
 			ln, sender->icmptag);
 	if(sender->icmptag == -1) goto out;
@@ -85,14 +85,14 @@ int sender_send_icmp(struct sender *sender, uint32_t dst, uint8_t ttl, /* {{{ */
 
 	sender->iptag = libnet_build_ipv4(
 			LIBNET_IPV4_H + LIBNET_ICMPV4_ECHO_H + 2,
-			SENDER_TOS, SENDER_ID, SENDER_FRAG, ttl+1,
-			IPPROTO_ICMP, SENDER_AUTO_CHECKSUM, 
+			SENDER_TOS, SENDER_ID, SENDER_FRAG, ttl,
+			IPPROTO_ICMP, SENDER_AUTO_CHECKSUM,
 			sender->ip, dst, NULL, 0, ln, sender->iptag);
 	if(sender->iptag == -1) goto out;
 
 	libnet_write(ln);
 	return 0;
-	
+
 	out:
 	loge(LOG_FATAL, __FILE__, __LINE__);
 	logd(LOG_DEBUG, "%s %d %d error: %s\n", __func__, ttl, checksum,
@@ -110,7 +110,7 @@ static uint16_t sender_balance_checksum(uint16_t typecode, /* {{{ */
 		uint16_t checksum, uint16_t id, uint16_t seq)
 {
 	uint32_t acc = 0;
-	
+
 	acc += typecode; /* already in network byte order */
 	acc += htons(checksum);
 	acc += htons(id);

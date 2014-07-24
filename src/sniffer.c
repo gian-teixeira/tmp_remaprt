@@ -63,6 +63,7 @@ void sniffer_destroy(struct sniffer *s) /* {{{ */
 {
 	int i;
 	void *r;
+	pcap_breakloop(s->pcap);
 	pthread_cancel(s->pthread);
 	i = pthread_join(s->pthread, &r);
 	if(i || r != PTHREAD_CANCELED) {

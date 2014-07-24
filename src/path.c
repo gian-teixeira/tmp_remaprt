@@ -656,6 +656,11 @@ int pathhop_ttl(const struct pathhop *h) {
 	if(h != NULL) return h->ttl;
 	else return (-1); }
 
+int * pathhop_ttlptr(struct pathhop *hop) {
+	if(hop != NULL) return &(hop->ttl);
+	else return NULL;
+}
+
 int pathhop_contains_ip(const struct pathhop *h, uint32_t ip) /* {{{ */
 {
 	int i;

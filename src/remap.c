@@ -225,13 +225,14 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 	if(!rmp->path) goto out;
 	rmp->db = probedb_create();
 	if(!rmp->db) goto out_path;
-	rmp->prober = prober_create(opts->iface, path_dst(rmp->path),
+	rmp->prober = prober_create(opts,
 			remap_cb_hop, remap_cb_iface, rmp);
 	if(!rmp->prober) goto out_db;
 	rmp->tq = tqueue_create();
 	if(!rmp->tq) goto out_prober;
 
-	rmp->startttl = opts->ttl;
+	/* -1 because we do all computation counting from zero */
+	rmp->startttl = opts->ttl - 1;
 	memset(rmp->shifts, 0, MAX_PATH_LENGTH*sizeof(int));
 
 	return rmp;
@@ -304,6 +305,17 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 		free(s);
 	}
 
+	for(; rmphop; rmphop = pavl_t_next(&trav)) {
+		char *s = pathhop_tostr(rmphop);
+		strncat(hstr, s, bufsz);
+		bufsz -= strlen(s);
+		bufsz = (bufsz < 0) ? 0 : bufsz;
+		strncat(hstr, "|", bufsz);
+		bufsz--;
+		bufsz = (bufsz < 0) ? 0 : bufsz;
+		free(s);
+	}
+
 	assert(*(strchr(hstr, '\0') - 1) == '|');
 	*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
 
@@ -319,9 +331,10 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 {
 	struct pathhop *hop = probedb_find_hop(rmp->db, ttl);
 	if(!hop) {
-		prober_remap_hop(rmp->prober, ttl);
+		/* +1 because inside paths we count from zero */
+		prober_remap_hop(rmp->prober, ttl+1);
 		struct pathhop * newhop = tqrecv(rmp->tq);
-		assert(pathhop_ttl(newhop) == ttl);
+		*pathhop_ttlptr(newhop) = ttl;
 		hop = probedb_add_hop(rmp->db, newhop);
 		pathhop_destroy(newhop);
 	}

@@ -60,6 +60,7 @@ int pathhop_contains_ip(const struct pathhop *h, uint32_t ip);
 char * pathhop_tostr(const struct pathhop *h);
 int pathhop_is_star(const struct pathhop *h);
 int pathhop_ttl(const struct pathhop *hop);
+int * pathhop_ttlptr(struct pathhop *hop);
 struct pathhop * pathhop_get_hop(struct path *path, int ttl);
 
 /*****************************************************************************

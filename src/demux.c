@@ -33,7 +33,7 @@ struct demux {
 	unsigned int readidx;
 	unsigned int writeidx;
 	unsigned int usedbuf;
-	struct packet packets[DEMUX_BUFSZ];		
+	struct packet packets[DEMUX_BUFSZ];
 
 	struct demux_listener *listeners;
 	pthread_mutex_t listenmut;
@@ -44,7 +44,7 @@ struct demux {
  * NULL-terminated array of sniffer structs or NULL on error. */
 static void * demux_thread(void *nothing);
 static struct sniffer ** demux_createcaps(const char *ifn, pcap_handler cb);
-static void demux_callback(unsigned char *vcap, 
+static void demux_callback(unsigned char *vcap,
 		const struct pcap_pkthdr *pkthdr, const unsigned char *pkt);
 static int demux_check_iface(const char *iface, pcap_if_t *pcapif);
 
@@ -108,7 +108,7 @@ void demux_destroy(void) /* {{{ */
 		logd(LOG_DEBUG, "%s:%d: join(%s) ret(%p)\n", __FILE__,
 				__LINE__, strerror(errno), r);
 	}
-	
+
 	i = pthread_cond_destroy(&demux->read);
 	if(i) logd(LOG_DEBUG, "%s read %s\n", __func__, strerror(errno));
 	i = pthread_mutex_destroy(&demux->imut);
@@ -161,7 +161,7 @@ void demux_listener_del(demux_listener_fn cb, void *data) /* {{{ */
 		free(del);
 	} else {
 		curr = demux->listeners;
-		while(curr->next && (curr->next->cb != cb || 
+		while(curr->next && (curr->next->cb != cb ||
 				curr->next->data != data))
 			curr = curr->next;
 		if(curr->next) {
@@ -328,7 +328,6 @@ static int demux_check_iface(const char *iface, pcap_if_t *pcapif) /* {{{ */
 static void packet_fillheaders(struct packet *pkt) /* {{{ */
 {
 	(*pkt).ip = (struct libnet_ipv4_hdr *)((*pkt).pkt + LIBNET_ETH_H);
-	(*pkt).ip->ip_ttl--;
 	switch((*pkt).ip->ip_p) {
 	case IPPROTO_ICMP: {
 		unsigned int icmplen = 0;

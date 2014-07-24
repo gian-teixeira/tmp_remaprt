@@ -16,7 +16,8 @@
 #include "timespec.h"
 #include "prober.h"
 
-int PARIS_IFACE2PROBES[] = {4, 4, 8, 12, 16, 21, 25, 30, 35, 40, 45, 51, 56, 62, 74, 80};
+// int PARIS_IFACE2PROBES[] = {4, 4, 8, 12, 16, 21, 25, 30, 35, 40, 45, 51, 56, 62, 74, 80};
+int PARIS_IFACE2PROBES[] = {4, 6, 8, 12, 16, 21, 25, 30, 35, 40, 45, 51, 56, 62, 74, 80};
 int PARIS_MAXIFACES = 15;
 
 /*****************************************************************************
@@ -62,17 +63,17 @@ static struct pathhop * hopremap_build_hop(const struct hopremap *hr);
 /*****************************************************************************
  * public implementations
  ****************************************************************************/
-struct prober * prober_create(const char *dev, uint32_t dst,  /* {{{ */
+struct prober * prober_create(const struct opts *opts, /* {{{ */
 		prober_cb_hop hop_cb, prober_cb_iface iface_cb, void *cb_data)
 {
 	struct prober *prober = malloc(sizeof(struct prober));
 	if(!prober) logea(__FILE__, __LINE__, NULL);
-	prober->dst = dst;
+	prober->dst = opts->dst;
 	prober->iface_cb = iface_cb;
 	prober->hop_cb = hop_cb;
 	prober->cb_data = cb_data;
 	prober->refcnt = 0;
-	prober->confirm = confirm_create(dev);
+	prober->confirm = confirm_create(opts->iface, opts->icmpid);
 	if(!prober->confirm) goto out;
 	prober->tq = tqueue_create();
 	if(!prober->tq) goto out_confirm;
