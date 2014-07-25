@@ -7,7 +7,8 @@
 
 struct prober;
 
-typedef void (*prober_cb_hop)(uint8_t ttl, struct pathhop *hop, void *data);
+typedef void (*prober_cb_hop)(uint8_t ttl, int nprobes, struct pathhop *hop,
+		void *data);
 typedef void (*prober_cb_iface)(uint8_t ttl, uint8_t flowid, struct iface *i,
 		void *data);
 

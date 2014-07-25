@@ -16,9 +16,9 @@
 #include "timespec.h"
 #include "prober.h"
 
-// int PARIS_IFACE2PROBES[] = {4, 4, 8, 12, 16, 21, 25, 30, 35, 40, 45, 51, 56, 62, 74, 80};
-int PARIS_IFACE2PROBES[] = {4, 6, 8, 12, 16, 21, 25, 30, 35, 40, 45, 51, 56, 62, 74, 80};
+int PARIS_IFACE2PROBES[] = {6, 6, 11, 16, 21, 27, 33, 38, 44, 51, 57, 63, 70, 76, 83, 90, 96};
 int PARIS_MAXIFACES = 15;
+
 
 /*****************************************************************************
  * static declarations
@@ -178,7 +178,7 @@ static void prober_hop_process(struct confirm_query *q) /* {{{ */
 	int needed = hopremap_needed_probes(hr);
 	if(needed == 0 && hr->pending_probes == 0) {
 		struct pathhop *hop = hopremap_build_hop(hr);
-		prober->hop_cb(hr->ttl, hop, prober->cb_data);
+		prober->hop_cb(hr->ttl, hr->probes_sent, hop, prober->cb_data);
 		hopremap_destroy(hr);
 	} else if(needed > 0) {
 		hopremap_send_probes(hr, needed);

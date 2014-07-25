@@ -29,6 +29,7 @@ struct remap {
 	struct prober *prober;
 	struct tqueue *tq;
 	uint8_t startttl;
+	int total_probes_sent;
 
 	struct probedb *db;
 	int shifts[MAX_PATH_LENGTH];
@@ -42,7 +43,8 @@ static void remap_destroy(struct remap *rmp);
 static void remap_print_result(const struct remap *rmp);
 static struct pathhop * remap_get_hop(struct remap *rmp, int ttl);
 
-static void remap_cb_hop(uint8_t ttl, struct pathhop *hop, void *rmp);
+static void remap_cb_hop(uint8_t ttl, int nprobes, struct pathhop *hop,
+		void *rmp);
 
 static void remap_cb_iface(uint8_t ttl, uint8_t flowid, struct iface *i,
 		void *rmp);
@@ -233,6 +235,7 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 
 	/* -1 because we do all computation counting from zero */
 	rmp->startttl = opts->ttl - 1;
+	rmp->total_probes_sent = 0;
 	memset(rmp->shifts, 0, MAX_PATH_LENGTH*sizeof(int));
 
 	return rmp;
@@ -321,7 +324,8 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 
 	buf = malloc(PATH_STR_BUF);
 	if(!buf) logea(__FILE__, __LINE__, NULL);
-	snprintf(buf, PATH_STR_BUF, "%s %s %d %s", src, dst, time, hstr);
+	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s", rmp->total_probes_sent,
+			src, dst, time, hstr);
 	printf("%s\n", buf);
 	free(hstr);
 	free(buf);
@@ -341,9 +345,11 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 	return hop;
 } /* }}} */
 
-static void remap_cb_hop(uint8_t ttl, struct pathhop *hop, void *vrmp) /*{{{*/
+static void remap_cb_hop(uint8_t ttl, int nprobes, struct pathhop *hop,/*{{{*/
+		void *vrmp)
 {
 	struct remap *rmp = vrmp;
+	rmp->total_probes_sent += nprobes;
 	logd(LOG_INFO, "%s reply for hop at TTL %d\n", __func__, (int)ttl);
 	tqsend(rmp->tq, hop);
 } /* }}} */
@@ -354,7 +360,7 @@ static void remap_cb_iface(uint8_t ttl, uint8_t flowid,  /* {{{ */
 	struct remap *rmp = vrmp;
 	logd(LOG_INFO, "%s reply for iface %d,%d\n", __func__, (int)ttl,
 			(int)flowid);
-
+	assert(0);
 	/* FIXME TODO implement logic */
 	char *str = iface_tostr(iface);
 	fprintf(stdout, "%d:%d %s\n", (int)ttl, (int)flowid, str);
