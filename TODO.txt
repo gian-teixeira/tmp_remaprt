@@ -1,0 +1,20 @@
+##############################################################################
+# LIMITATIONS
+##############################################################################
+
+- The current program exits if the first probed hop (the oned passed on the
+command line) is unresponsive.
+
+- NOT SURE IF REMAPROUTE DEALS WITH LOOPS
+
+##############################################################################
+# LONG TERM
+##############################################################################
+
+- Add support for IPv6
+
+- The confirm module should send probes with a sequence number so we can match
+  probes to responses and calculate RTTs.  As it is, we cannot calculate RTTs
+  if we send multiple probes to the same (TTL, flowid) pair simultaneously
+  (which may happen if we want to probe faster or run multiple program
+  instances).
