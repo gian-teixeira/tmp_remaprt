@@ -69,9 +69,6 @@ void remap(const struct opts *opts) /* {{{ */
 	}
 	if(pathhop_is_star(hop)) goto out;
 
-	/* TODO FIXME improve this so we probe backwards; make it so we can
-	 * remap paths that become shorter. */
-
 	int ttl = path_search_hop(rmp->path, hop, 0);
 	if(ttl == rmp->startttl) {
 		logd(LOG_INFO, "%s: no remap to do\n", __func__);
