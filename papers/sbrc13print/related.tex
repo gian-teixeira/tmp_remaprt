@@ -1,0 +1,84 @@
+\section{Trabalhos relacionados}
+\label{sec:related}
+
+Operadores podem utilizar mensagens dos protocolos de roteamento (e.g.,
+OSPF e IS-IS) e arquivos de configuração dos roteadores para mapear a
+topologia de sua rede~\cite{feamster05nsdi, turner10cenic,
+athina08link}.  Esta abordagem resulta em mapas completos e precisos da
+topologia, mas só está disponível para operadores de redes e é restrita
+a uma única rede.  Para mapear múltiplas redes, podemos utilizar
+coletores públicos de mensagens BGP\footnotemark{} para construir um
+mapa dos sistemas autônomos da Internet~\cite{oliveira08as2tier,
+dhamdhere08evo}.  Infelizmente, o BGP não expõe todos os enlaces da rede
+e coletores públicos de mensagens BGP não cobrem todos os sistemas
+autônomos da Internet~\cite{oliveira08as2tier, cohen06darkmatter}.
+Neste trabalho tomamos a abordagem ortogonal de medir a topologia da
+rede no nível de roteadores usando medições ativas.
+
+\footnotetext{The University of Oregon Routeviews Project,
+http://www.routeviews.org\newline{}
+\indent{}\indent{}\hspace{-1mm}RIPE Routing Information Service,
+http://www.ripe.net/data-tools/stats/ris}
+
+Pesquisa sobre mapeamento topológico no nível de roteadores usando
+medições ativas têm três objetivos principais: (i) aumentar a cobertura
+da Internet, (ii) aumentar a precisão da topologia construída e (iii)
+aumentar a frequência das medições.
+
+A abordagem clássica para aumentar a cobertura da Internet é monitorar
+um grande número de caminhos.  A plataforma Skitter/Ark da
+CAIDA~\cite{skitter} tenta cobrir toda a Internet usando alguns
+monitores para medir caminhos para todos os prefixos $/24$ anunciados na
+Internet.  O problema é que o Skitter/Ark demora de dois a três dias
+para coletar a topologia devido ao grande número de caminhos monitorados
+e limitações de banda nos monitores.  Uma alternativa é dividir a carga
+de sondagem das medições entre vários monitores, como nos sistemas
+DIMES~\cite{shavitt09dimes} e Ono~\cite{choffnes10crowd}.  Neste
+trabalho assumimos que o conjunto de monitores e destinos é fixo.
+Porém, utilização do RemapRoute é ortogonal ao conjunto de monitores e
+destinos.  O RemapRoute pode ser usado por qualquer um dos sistemas
+acima para reduzir a sobrecarga de rede.
+
+Técnicas para aumentar a precisão da topologia coletada tentam inferir
+mais informações sobre a rede do que medições tradicionais com
+traceroute.  O Paris traceroute envia sondas adicionais variando
+sistematicamente os valores nos campos do cabeçalho IP para detectar
+todos os roteadores que fazem balanceamento de carga em uma
+caminho~\cite{augustin07, veitch09balancer}.  O \rmprt{} detecta
+roteadores que fazem balanceamento de carga utilizando o mesmo algoritmo
+que o Paris traceroute.  O DisCarte usa traceroute e sondas com a opção
+\emph{Record Route} do protocolo IP ativada para coletar duas sequências
+relacionadas de roteadores em caminhos da
+Internet~\cite{sherwood08discarte}.  O DisCarte pós-processa essas
+sequências com ferramentas de aprendizado de máquina para combiná-las em
+uma topologia mais precisa.  Estas e outras técnicas enviam sondas
+adicionais e aumentam o custo de mapeamento da topologia.  O objetivo do
+RemapRoute é complementar: reduzir o custo do remapeamento de mudanças
+de roteamento, aumentando a disponibilidade de sondas para coleta de
+topologias mais precisas.  
+
+% Várias técnicas coletam informações para converter topologias de rede
+% no nível de endereços IP no nível de roteadores~\cite{sherry10alias},
+% pontos de presença~\cite{feldman07popmap} e sistemas
+% autônomos~\cite{chen09sidewalk}.  
+
+Nosso trabalho é mais relacionado com técnicas para aumentar a
+frequência de medições da topologia da Internet.  Em geral, monitores
+têm banda de rede limitada para mapear a topologia.  Reduzir o custo de
+cada medição da topologia aumenta diretamente a frequência com a qual
+medições podem ser coletadas.  O RocketFuel, por exemplo, reduz o custo
+para mapear a topologia de um sistema autônomo alvo descartando caminhos
+que têm roteadores de ingresso e egresso no sistema autônomo alvo
+idênticos a outro caminho já medido~\cite{spring02rocketfuel}.  Outra
+abordagem é reduzir o custo de medições escolhendo apenas um destino em
+cada sub-rede num sistema autônomo~\cite{beverly10hifreq}.  O Doubletree
+reduz sondas redundantes nos roteadores próximos a monitores
+(compartilhados pelos caminhos partindo do monitor) e nos roteadores
+próximos a destinos (compartilhados pelos caminhos que terminam no
+destino)~\cite{donnet05topology}.  O \rmprt{} foi desenvolvido para
+reduzir o custo do remapeamento de mudanças no \dtrack{}, nosso sistema
+de mapeamento topológico~\cite{cunha11dtrack}.  O \rmprt{} e o \dtrack{}
+complementam as técnicas existentes para redução do custo de mapeamento
+topológico.  O \dtrack{} reduz sondas redundantes para roteadores
+próximos aos monitores como o Doubletree e é compatível com técnicas
+descritas acima para selecionar quais caminhos mapear.

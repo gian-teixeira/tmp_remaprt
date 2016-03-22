@@ -1,0 +1,134 @@
+\section{Introdução}
+\label{sec:intro}
+
+Sistemas para identificação de falhas na Internet coletam medições
+frequentes de rotas na rede \cite{duffield06binary,
+dhamdhere07netdiagnoser, kompella07blackholes, bassett12lifeguard}.  De
+forma similar, redes de distribuição de conteúdo medem rotas na Internet
+para escolher o melhor servidor para atender uma requisição
+\cite{akamai}.  Esses e outros sistemas medem rotas frequentemente na
+esperança de rastrear mudanças de roteamento à medida que elas
+acontecem.  
+
+Medições de rota na Internet são frequentemente coletadas com traceroute
+\cite{jacobson1989traceroute, augustin07, veitch09balancer}, que envia
+sondas para identificar uma sequência de roteadores entre uma origem e
+um destino.  A banda disponível para enviar sondas é finita.  Medir
+rotas para mapear a topologia requer um grande número de sondas e pode
+levar de vários minutos a alguns dias \cite{cunha11fastmapping,
+sherwood08discarte, skitter}.  É impossível medir com frequência
+suficiente para detectar todas as mudanças de roteamento sem
+sobrecarregar a rede.  Consequentemente, mapas da topologia da Internet
+podem estar desatualizados ou inconsistentes pois mudanças de roteamento
+podem acontecer durante o processo de medição.
+
+Nosso sistema \dtrack{} rastreia mudanças de roteamento na Internet para
+manter mapas da topologia da Internet mais atualizados
+\cite{cunha11dtrack}.  O \dtrack{} separa as tarefas de detectar e
+remapear mudanças de roteamento.  Para detectar mudanças, o \dtrack{}
+usa um processo de sondagem leve que combina duas ideias: (1)
+redirecionar sondas de caminhos estáveis onde mudanças de roteamento são
+improváveis para caminhos instáveis onde mudanças são mais prováveis; e
+(2) espalhar sondas de forma uniforme na rede para reduzir medições
+redundantes.  Para remapear mudanças, o \dtrack{} usa o Paris traceroute
+\cite{augustin07, veitch09balancer} para medir a nova rota por inteiro.
+O Paris traceroute é uma versão moderna do traceroute capaz de
+identificar roteadores que fazem balanceamento de carga.  Usamos o Paris
+traceroute por que é impossível inferir mudanças de roteamento de forma
+precisa sem informação sobre roteadores que fazem balanceamento de carga
+\cite{cunha11fastmapping}.
+
+O \dtrack{} mantém um banco de dados com a última rota observada em cada
+um dos caminhos monitorados.  Para detectar mudanças, o \dtrack{} envia
+uma sonda num ponto $s^\prime$ do caminho e compara a resposta da sonda
+com a última rota observada.  Se a resposta da sonda for incompatível
+com a última rota observada, e.g., o endereço IP do roteador que enviou
+a resposta não pertence à última rota observada, uma mudança é detectada
+e o processo de remapeamento é disparado.  Atualmente, o \dtrack{}
+remapeia o caminho por inteiro usando o Paris traceroute.  Esta
+abordagem garante medição correta da nova rota, mas desperdiça várias
+sondas pois mudanças de caminho envolvem poucos roteadores
+(\secstr~\ref{sec:char}).  Em particular, esta abordagem ignora duas
+informações disponíveis quando o processo de remapeamento é disparado: a
+última rota observada e o ponto $s^\prime$ onde a mudança foi detectada.
+
+Neste artigo propomos \rmprt{}, uma ferramenta para reduzir o custo do
+remapeamento de mudanças de roteamento na Internet
+(seção~\ref{sec:remap}).  Dadas a última rota observada e um ponto onde
+uma mudança foi detectada, o \rmprt{} envia sondas em pontos
+estratégicos para localizar a mudança e remapeá-la localmente, sem
+desperdiçar sondas nos roteadores que não estão envolvidos na mudança.
+Nossa avaliação via simulação dirigida por dados reais mostra que
+\rmprt{} reduz pela metade o custo do remapeamento de 88\% das mudanças
+de roteamento em nossos dados (seção~\ref{sec:sim}).  A redução de custo
+é ainda maior em rotas longas ou com roteadores que fazem balanceamento
+de carga.  Nossa avaliação de um protótipo do \rmprt{} usando o
+PlanetLab confirma nossos resultados via simulação e demonstra a
+eficácia da ferramenta (\secstr~\ref{sec:deploy}).  Sumarizando, neste
+artigo fazemos as seguintes contribuições:
+
+\begin{itemize}
+
+\item Caracterizamos mudanças de roteamento na Internet e mostramos que
+elas envolvem uma fração pequena dos roteadores numa rota
+(\secstr~\ref{sec:char});
+
+\item Propomos métodos para localizar e remapear mudanças de roteamento
+que reduzem o desperdício de sondas (\secstr~\ref{sec:remap});
+
+\pagebreak{}
+\item Mostramos que nossa ferramenta reduz o custo de remapeamento de
+mudanças de rota via simulação e em cenários reais
+(\secstrs~\ref{sec:sim} e~\ref{sec:deploy}).
+
+\end{itemize}
+
+A economia de sondas no processo de remapeamento de mudanças de
+roteamento aumenta o número de sondas disponíveis para mapeamento
+topológico.  Podemos utilizar estas sondas para monitorar mais caminhos
+na Internet e melhorar a cobertura dos mapas da topologia, ou aumentar a
+frequência de sondagem e melhorar o rastreamento de mudanças de
+roteamento.  \rmprt{} é mais um passo na construção de mapas da
+topologia da Internet mais completos e consistentes.
+
+
+% A Internet provê o melhor serviço possível, mas não dá garantias de
+% conectividade ou desempenho de ponta-a-ponta.  Apesar da Internet
+% funcionar bem a maior parte do tempo, é comum problemas comprometerem
+% conectividade e desempenho na Internet~\cite{athina08link,
+% turner10cenic}, frustrando usuários e causando prejuízos para
+% provedores de acesso.  Problemas na Internet acontecem por diversas
+% razões, incluindo falhas de equipamento~\cite{bassett08hubble,
+% turner10cenic}; rompimento de cabos de fibra óptica ou desastres
+% naturais~\cite{quake3, quake4, quake1}; e até erros de \emph{software}
+% ou erros de configuração de roteadores~\cite{feamster05nsdi}.
+
+% A natureza distribuída da Internet implica que nenhuma entidade
+% consegue solucionar problemas sozinha.  Dentro de suas redes,
+% operadores podem identificar problemas usando dados e alarmes dos
+% roteadores da rede~\cite{snmprfc, mahimkar08nice, athina08link}.
+% Alguns problemas, infelizmente, não aparecem em sistemas de
+% alarme~\cite{kompella07blackholes}.  Fora de suas redes, operadores de
+% rede frequentemente contratam serviços como Keynote\footnote{Keynote
+% Systems, Inc. \url{http://www.keynote.com}} ou RIPE TTM\footnote{RIPE
+% Test Traffic Measurement Service.
+% \url{http://www.ripe.net/data-tools/stats/ttm}} para monitorar
+% conectividade e desempenho ponta-a-ponta.
+
+% A única maneira de identificar problemas sem acesso ao equipamento de
+% rede é realizar medições distribuídas de ponta-a-ponta na Internet e
+% combinar essas medições para inferir o local da
+% falha~\cite{nguyen07lossrate, kompella07blackholes, bassett08hubble,
+% duffield06binary, dhamdhere07netdiagnoser}.  A comunidade de pesquisa
+% propôs os algoritmos de tomografia de rede como uma técnica promissora
+% para identificação de problemas~\cite{dhamdhere07netdiagnoser,
+% duffield06binary, nguyen07lossrate}.
+
+% Infelizmente, algoritmos de tomografia têm limitações que
+% impossibilitam sua aplicação prática~\cite{huang08ccr, nguyen09tomo}.
+% Em particular, algoritmos de tomografia de rede consideram que a
+% topologia da rede é conhecida com exatidão.  Isto não é realista na
+% Internet em geral, onde precisamos medir rotas com medições de
+% ponta-a-ponta.
+
+

@@ -1,0 +1,32 @@
+\section{Conclusões e trabalhos futuros}
+\label{sec:conc}
+
+A manutenção de mapas completos e atualizados da Internet é difícil
+devido à grande quantidade de sondas necessárias e restrições de banda
+nos monitores.  Neste trabalho propomos o \rmprt{}, uma ferramenta para
+reduzir o custo de remapeamento de mudanças de roteamento na Internet.
+Dadas a rota anterior a uma mudança de roteamento e um salto
+(\emph{hop}) onde a mudança foi detectada, o \rmprt{} (1) realiza uma
+busca binária pelo salto onde a mudança aconteceu e (2) faz o
+remapeamento local da mudança.  Comparado com a abordagem atual de
+remapear a nova rota por inteiro usando traceroute, o \rmprt{} reduz
+significativamente o número de saltos sondados para remapear mudanças de
+roteamento na Internet.  Essa redução de saltos sondados aumenta a
+disponibilidade de sondas, potencializando a medição de mais caminhos ou
+aumento da frequência de medições.  O remapeamento com \rmprt{} é tão
+preciso quanto remapear o caminho inteiro com traceroute, e a latência
+de remapeamento é satisfatória para utilização do \rmprt{} em sistemas
+reais.  \rmprt{} é mais um passo na construção de mapas da topologia da
+Internet mais completos e atualizados.
+
+Como trabalho futuro, pretendemos integrar o \rmprt{} no \dtrack{} e
+prover um serviço de mapeamento da Internet aberto para disponibilizar
+informações sobre a topologia para pesquisadores e aplicações.  Queremos
+também reduzir ainda mais o custo de remapeamento de mudanças no
+\dtrack{}.  Atualmente, o \dtrack{} remapeia cada caminho separadamente.
+Esta abordagem desperdiça sondas caso vários caminhos sejam afetados
+pela mesma mudança.  Pretendemos desenvolver mecanismos para prever
+quais caminhos são afetados por uma mesma mudança e remapear apenas um
+deles.
+
+

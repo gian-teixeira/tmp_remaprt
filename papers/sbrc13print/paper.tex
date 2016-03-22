@@ -1,0 +1,107 @@
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+\usepackage{graphicx,url}
+\usepackage[brazil, american]{babel}   
+\usepackage[utf8]{inputenc}  
+\usepackage{tikz}
+\usepackage{subfigure}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{cite}
+% \usepackage[portugues, ruled, lined, linesnumbered]{algorithm2e}
+
+\newcommand{\ed}[1]{\textbf{[[#1]]}}
+\newcommand{\dtrack}{\textsc{dtrack}}
+\newcommand{\rmprt}{{Re\-map\-Rou\-te}}
+\newcommand{\figstr}{figura}
+\newcommand{\secstr}{seção}
+\newcommand{\secstrs}{seções}
+
+\hyphenation{re-map-rou-te}
+\hyphenation{Re-map-Rou-te}
+
+\sloppy
+
+\title{RemapRoute: Reduzindo o custo do remapeamento de\\
+mudanças de roteamento na Internet}
+
+\newfont{\cunhaemail}{phvr8t at 8.5pt}
+\author{\'{I}talo Cunha\inst{1}\qquad Renata Teixeira\inst{2}\qquad Darryl
+Veitch\inst{3}\qquad Christophe Diot\inst{4}}
+
+\address{Departamento de Ciência da Computação, Universidade Federal
+de Minas Gerais
+\nextinstitute
+UPMC Sorbonne Universit\'{e}s \&
+conseil Nationale de la Recherche Cientifique
+\nextinstitute
+Department of Electrical and Electronic Engineering, University of Melbourne
+\nextinstitute
+Technicolor
+\email{}\cunhaemail{
+cunha@dcc.ufmg.br, renata.teixeira@lip6.fr,
+dveitch@unimelb.edu.au, christophe.diot@technicolor.com}
+}
+
+\begin{document} 
+
+\maketitle
+
+\selectlanguage{american}
+
+\begin{abstract}
+%
+Internet topology maps collected with traceroute may be incomplete or
+out-of-date because we cannot measure frequently enough to detect all
+routing changes without overloading the network.  In this paper, we show
+that routing changes usually affect few routers.  We exploit this
+property to design \rmprt{}, a tool to locally remap Internet routing
+changes that probes only the few affected routers instead of the whole
+route.  Our evaluation with trace-driven simulations and a deployment
+shows that \rmprt{} significantly reduces the number of probes needed to
+remap routes, with no impact on remapping accuracy or latency.  This
+reduction in remapping cost allows us to build more complete and
+up-to-date topology maps.
+%
+\end{abstract}
+
+\selectlanguage{brazil}
+     
+\begin{resumo} 
+%
+Mapas topológicos da Internet coletados com traceroute podem estar
+incompletos ou desatualizados porque não podemos realizar medições em
+frequência suficiente para detectar todas as mudanças de rota.  Neste
+artigo mostramos que mudanças de rota geralmente afetam poucos
+roteadores.  Exploramos essa propriedade no \rmprt{}, nossa ferramenta
+para remapeamento local de mudanças de roteamento que sonda apenas os
+poucos roteadores afetados ao invés de toda a rota.  Nossa avaliação via
+simulação e um protótipo real mostra que \rmprt{} reduz
+significativamente o número de sondas de remapeamento, sem comprometer a
+exatidão e a latência de remapeamento.  Esta redução do custo de
+remapeamento nos propicia construir mapas topológicos mais completos e
+atualizados.
+%
+\end{resumo}
+
+\input{intro}
+
+\input{background}
+
+\input{char}
+
+\input{remap}
+
+\input{sim}
+
+\input{eval}
+
+\input{related}
+
+\input{conc}
+
+\bibliographystyle{sbc}
+\bibliography{references}
+
+\end{document}
