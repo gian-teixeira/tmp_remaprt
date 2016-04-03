@@ -66,7 +66,7 @@ interval can help us to detect the change.
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.8\columnwidth]{figs/patching/durationdetection.pdf}
+\includegraphics[width=0.8\columnwidth]{figs/patching/durationdetection/durationdetection.eps}
 \caption{CDF of detection duration to remap overlappinh routes. }
 \label{fig:overlap.delay.cdf}
 \end{center}
@@ -75,7 +75,7 @@ interval can help us to detect the change.
 %
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.8\columnwidth]{figs/patching/routesoverlapping.pdf}
+\includegraphics[width=0.8\columnwidth]{figs/patching/routesoverlapping/routesoverlapping.eps}
 \caption{CDF of detection overlapping with other routes.}
 \label{fig:join.acc}
 \end{center}
@@ -94,7 +94,7 @@ the probability that the overlapping path will change.
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.8\columnwidth]{figs/patching/probchange.pdf}
+\includegraphics[width=0.8\columnwidth]{figs/patching/probchange/probchange.eps}
 \caption{Probability of change given the size of the overlap. }
 \label{fig:overlap.change.prob}
 \end{center}
@@ -127,14 +127,16 @@ when the last have a $\lczd'$ with equal size, removed.
 Figure~\ref{fig:lczd.intersection} shows the distribution of the
 number of hops in $CPS$ that are in a $\lczd'$ by the
 size of $CPS$,
-i.e., $|(CPS \cap \lczd'_{core})| \div |CPS|$.  The distribution shows that the
-probing almost any hop in
-$\CPS$ will detect the change (if there is one). (EXPLAIN THAT 5\% has an LCZD
-that do not cross an overlap and 65\% do not change)
+i.e., $|(CPS \cap \lczd'_{core})| \div |CPS|$.  The distribution shows that 
+70,92\% of the $CPS$ does not have any intersection with 
+an LCZD' in the overlapping path which 4.83\% of the cases
+have an LCZD' that intersections are not capable to detect and 66,09\%
+the overlapping path does not change at all. Also, it is clearly that if a 
+the $CPS$ intersects a LCZD', probing any hop inside $CPS$ will detect
+a change, i.e., in all cases where an overlap crosses an overlapping path
+with a change (33,91\% of all intersects), we are able to send a probe into any hop inside
+$CPS$ and detect a change with 100\% of precision in 82.89\% of times (28.11\% of all intersections).
 
-% NEED TO CHANGE THE LAST GRAPH: PUTTING ONLY I IN THE GRAPH?
-% HOW TO DEAL WITH THE FACT THAT THERE ARE MANY OVERLAP THAT
-% DOES NOT CHANGE.
 %We also looked
 %at where the intersection $I$ is located compared to $\lczd$.  We
 %find that XX\% of the intersections $I$ are at the start of the
@@ -146,7 +148,7 @@ that do not cross an overlap and 65\% do not change)
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.8\columnwidth]{figs/patching/overlapcoverage.pdf}
+\includegraphics[width=0.8\columnwidth]{figs/patching/overlapcoverage/overlapcoverage.eps}
 \caption{Probability of a probe detect a candidates that are in a LCZD on other.}
 \label{fig:lczd.intersection}
 \end{center}
