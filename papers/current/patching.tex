@@ -36,11 +36,12 @@ radius $r'$ on path $p_{i-1}$ (i.e., $p[r'] \ne p_{i-1}[r']$),
 After remapping of path $p_{i-1}$ is complete, we compute
 $\lczd(r')$. Our extended \dtrack{} then queues all (other)
 \emph{overlapping paths} $q$ who intersect $\lczd(r')$, i.e., $q\,
-\cap\,\lczd(r') \ne \emptyset$, for remapping (if not queued). It is important to point out that this 
-an overlapping path cannot enqueue other overlapping paths once this situation 
+\cap\,\lczd(r') \ne \emptyset$, for remapping (if not queued). It is important
+to point out that overlapping paths enqueued by a routing event is
+not considered as a new routing event once this situation can
 originate a recursive loop. Also, to prevent paths that change
-overtime and supress other routes to enqueue overlapping paths,
-we set a minimum time interval for a path to enqueue overlapping paths
+overtime and supress other routes to be evaluated as a routing event,
+we set a minimum time interval between routing events for a same destination
 (six hours). 
 
 We deployed the extended \dtrack{} version on 80 PlanetLab nodes useing three 
@@ -55,12 +56,12 @@ Figure~\ref{fig:overlap.delay.cdf} shows the CDF, over all detected
 path changes, of the approximate time it takes to remap all
 overlapping paths.  Because we remap overlapping paths within
 a short period, there is a lower probability that subsequent routing
-events will happen while remap is ongoing.
+events will happen while remap is ongoing. 
 Figure~\ref{fig:overlap.quantity.cdf} shows the CDF, over all
 detected path changes, of the fraction of overlapping paths (i.e.,
 fraction of other paths that overlap with local change zone
 domains).  We observe that 73.68\% of all routes have at least one 
-intersection which is a fuel to investigate further if these
+intersection which lead us to investigate further if these
 overlapping paths also change as well and how the overlapping
 interval can help us to detect the change.
 
@@ -82,13 +83,13 @@ interval can help us to detect the change.
 %
 \end{figure}
 
-
-For each detected path change, we check which of the overlapping
-paths have also changed.  Figure~\ref{fig:overlap.change.prob} shows
-the fraction of overlapping paths that have changed, grouping
+Let $O$ denotes the overlap between a path $P$ and a routing event $R$, i.e.,
+$O = \lczd_{R}\,\cap\,P$. Now we are able to analyze the probability of path $P$ 
+also changed at any hop inside $O$. Figure~\ref{fig:overlap.change.prob} shows
+the fraction of overlapping paths that have changed as well, grouping
 overlapping paths by the fraction of the local change zone domain
 that intersects the overlapping paths, i.e.,
-$|q\,\cap\,\lczd|\div|\lczd|$.  We note that as overlapping paths
+$|O|\div|\lczd|$.  We note that as overlapping paths
 have more in common with the local change zone domain, the higher
 the probability that the overlapping path will change.  
 
@@ -112,16 +113,16 @@ change zone domain for an overlapping path that has changed, and let
 $I = \lczd\,\cap\,\lczd'$ denote the \emph{intersection} of the
 local change zone domains for the path where the routing event was
 detected ($\lczd$) and an overlapping path ($\lczd'$).
-We also define the Candidades Probing Set ($CPS$) as the subpath 
+We also define the Candidates Probing Set ($CPS$) as the subpath 
 in the overlapping path between the first and last hop in $I$.
-We remove the $r_c$ and $r_d$ of $\lczd$, if they are in the overlapping,
-once they are not good hops to probe in order to find changes
+We remove the $r_c$ and $r_d$ from $\lczd$, if they are in the overlapping,
+once they are not good hops to probe in order to find changes.
 The data shows that if a $r_d$ is in the intersect, only 0.4\% of times
 it changed in the overlapping path. Also, considering that the $r_c$ can
-indicate changes when $\lczd'$ have different size, i.e., $|lczd_{p}| \ne l|czd_{p-1}| $ 
-we found that the $r_c$ changed only 8.88\% in all intersects such that $r_c \in I$.
-For simplicity, we define a $\lczd'_{core}$ as a $\lczd'$ with $r_d$ and $r_c$,
-when the last have a $\lczd'$ with equal size, removed.
+indicate changes when $\lczd'$ have different size, i.e., $|lczd_{p}| \ne l|czd_{p-1}|$ 
+we found that the $r_c$ changed only 8.88\% in the overlapping on all intersects such that 
+$r_c \in I$. For simplicity, we define a $\lczd'_{core}$ as a $\lczd'$ without
+$r_d$ and $r_c$, where $r_c$ must be in a $\lczd'$ with equal size.
 
 
 Figure~\ref{fig:lczd.intersection} shows the distribution of the
@@ -148,7 +149,7 @@ $CPS$ and detect a change with 100\% of precision in 82.89\% of times (28.11\% o
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.8\columnwidth]{figs/patching/overlapcoverage/overlapcoverage.eps}
+\includegraphics[width=0.8\columnwidth]{figs/patching/overlapcoverage/overlapcoverage_only_lczd.eps}
 \caption{Probability of a probe detect a candidates that are in a LCZD on other.}
 \label{fig:lczd.intersection}
 \end{center}
