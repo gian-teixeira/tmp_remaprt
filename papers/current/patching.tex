@@ -52,6 +52,30 @@ addresses were 12763 with a coverage of 5715 ASes in IPlane database. Each Plane
 among destinations. The data used in this analysis was colleted between 01/27/2016 
 to 03/07/2016, i.e., around 40 days.
 
+\begin{figure*}
+\vspace{5mm}
+\begin{minipage}{0.32\textwidth}
+\includegraphics[width=0.8\columnwidth]{figs/patching/durationdetection/durationdetection.eps}
+\caption{CDF of detection duration to remap overlappinh routes. }
+\label{fig:overlap.delay.cdf}
+%
+\end{minipage}
+\hfill
+\begin{minipage}{0.32\textwidth}
+\includegraphics[width=0.8\columnwidth]{figs/patching/routesoverlapping/routesoverlapping.eps}
+\caption{CDF of detection overlapping with other routes.}
+\label{fig:overlap.quantity.cdf}
+\end{minipage}
+%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\includegraphics[width=0.8\columnwidth]{figs/patching/probchange/probchange.eps}
+\caption{Probability of a overlapping path has a change given the size of the overlap.}
+\label{fig:overlap.change.prob}
+\end{minipage}
+\end{figure*}
+
+
 Figure~\ref{fig:overlap.delay.cdf} shows the CDF, over all detected
 path changes, of the approximate time it takes to remap all
 overlapping paths.  Because we remap overlapping paths within
@@ -65,78 +89,48 @@ intersection which lead us to investigate further if these
 overlapping paths also change as well and how the overlapping
 interval can help us to detect the change.
 
-\begin{figure}
-\begin{center}
-\includegraphics[width=0.8\columnwidth]{figs/patching/durationdetection/durationdetection.eps}
-\caption{CDF of detection duration to remap overlappinh routes. }
-\label{fig:overlap.delay.cdf}
-\end{center}
-%
-\end{figure}
-%
-\begin{figure}
-\begin{center}
-\includegraphics[width=0.8\columnwidth]{figs/patching/routesoverlapping/routesoverlapping.eps}
-\caption{CDF of detection overlapping with other routes.}
-\label{fig:join.acc}
-\end{center}
-%
-\end{figure}
 
-Let $O$ denotes the overlap between a path $P$ and a routing event $R$, i.e.,
-$O = \lczd_{R}\,\cap\,P$. Now we are able to analyze the probability of path $P$ 
+Let $O$ denotes the overlap between an overlapping path $P$ and a $\lczd$ in routing event, i.e.,
+$O = \lczd\,\cap\,P$. Now we are able to analyze the probability of path $P$ 
 also changed at any hop inside $O$. Figure~\ref{fig:overlap.change.prob} shows
 the fraction of overlapping paths that have changed as well, grouping
 overlapping paths by the fraction of the local change zone domain
 that intersects the overlapping paths, i.e.,
 $|O|\div|\lczd|$.  We note that as overlapping paths
 have more in common with the local change zone domain, the higher
-the probability that the overlapping path will change.  
+the probability that the overlapping path will change. 
 
-\begin{figure}
-\begin{center}
-\includegraphics[width=0.8\columnwidth]{figs/patching/probchange/probchange.eps}
-\caption{Probability of change given the size of the overlap. }
-\label{fig:overlap.change.prob}
-\end{center}
-%
-\end{figure}
-%
 %We also find
 %that paths that have more in common with the path where the change
 %was detected have even higher probability of changing (not shown
 %\ed{@elverton: but please plot so we can see}).
 
+ 
 We now want to find a way to identify whether an overlapping path
-has changed (or remained stable).  Let $\lczd'$ denote the local
-change zone domain for an overlapping path that has changed, and let
-$I = \lczd\,\cap\,\lczd'$ denote the \emph{intersection} of the
-local change zone domains for the path where the routing event was
-detected ($\lczd$) and an overlapping path ($\lczd'$).
+has changed (or remained stable). Let $\lczd'$ denote the local
+change zone domain of an overlapping path that has changed without
+hops that does not indicate changes if probed, i.e., $r_d$ in all cases 
+and $r_c$ if $|\lczd'_{p}| = |\lczd'_{p-1}|$ and $C = \bigcup(\lczd')$ 
+denote all hops in the overlapping path which a probe can detect a change.
+%Let $I = \lczd\,\cap\,\cup(\lczd')$ denote the \emph{intersection} of a
+%local change zone domain for the path where the routing event was
+%detected ($\lczd$) and all $\lczd'$ inside the overlapping path.
 We also define the Candidates Probing Set ($CPS$) as the subpath 
-in the overlapping path between the first and last hop in $I$.
-We remove the $r_c$ and $r_d$ from $\lczd$, if they are in the overlapping,
-once they are not good hops to probe in order to find changes.
-The data shows that if a $r_d$ is in the intersect, only 0.4\% of times
-it changed in the overlapping path. Also, considering that the $r_c$ can
-indicate changes when $\lczd'$ have different size, i.e., $|lczd_{p}| \ne l|czd_{p-1}|$ 
-we found that the $r_c$ changed only 8.88\% in the overlapping on all intersects such that 
-$r_c \in I$. For simplicity, we define a $\lczd'_{core}$ as a $\lczd'$ without
-$r_d$ and $r_c$, where $r_c$ must be in a $\lczd'$ with equal size.
+in the overlapping path between the \textbf{first} and \textbf{last} hop in $O$,
+removing the $r_c$ and $r_d$ from the $\lczd$ if they are in $O$. 
+We exclude the $r_d$ and $r_c$ from $CPS$ once they have a low change 
+rate on dataset of 0.4\% and 8.88\%, respectively, considering all overlaps they are in.
 
-
-Figure~\ref{fig:lczd.intersection} shows the distribution of the
-number of hops in $CPS$ that are in a $\lczd'$ by the
-size of $CPS$,
-i.e., $|(CPS \cap \lczd'_{core})| \div |CPS|$.  The distribution shows that 
-70,92\% of the $CPS$ does not have any intersection with 
-an LCZD' in the overlapping path which 4.83\% of the cases
-have an LCZD' that intersections are not capable to detect and 66,09\%
-the overlapping path does not change at all. Also, it is clearly that if a 
-the $CPS$ intersects a LCZD', probing any hop inside $CPS$ will detect
-a change, i.e., in all cases where an overlap crosses an overlapping path
-with a change (33,91\% of all intersects), we are able to send a probe into any hop inside
-$CPS$ and detect a change with 100\% of precision in 82.89\% of times (28.11\% of all intersections).
+From all 67 millions overlaps found, 66.09\% of cases crosses overlapping paths 
+that does not have any change ($C = \emptyset$) and 4,83\% of overlaps have 
+$C \ne \emptyset$ but $CPS \cap C = \emptyset$, 
+i.e., we are not able to detect a change directly by an overlap inside the 
+routing event. We now focus on the 29.07\% of overlaps such that $CPS \cap C \ne \emptyset$
+where we can make a contribution. Figure~\ref{fig:lczd.intersection}  
+shows the distribution of the number of hops in $CPS$ that are in a $C$ by the size of $CPS$,
+i.e., $|(CPS \cap C)| \div |CPS|$.  The distribution shows that,
+in 96.70\% of overlaps where $CPS \cap C \ne \emptyset$, probing any hop inside $CPS$ 
+will detect a change.
 
 %We also looked
 %at where the intersection $I$ is located compared to $\lczd$.  We
@@ -150,7 +144,7 @@ $CPS$ and detect a change with 100\% of precision in 82.89\% of times (28.11\% o
 \begin{figure}
 \begin{center}
 \includegraphics[width=0.8\columnwidth]{figs/patching/overlapcoverage/overlapcoverage_only_lczd.eps}
-\caption{Probability of a probe detect a candidates that are in a LCZD on other.}
+\caption{Probability of a probe inside a $CPS$ detect a change if $CPS \cap C \ne \emptyset$.}
 \label{fig:lczd.intersection}
 \end{center}
 %
