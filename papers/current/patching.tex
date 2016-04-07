@@ -42,9 +42,9 @@ $\lczd(r')$. Our extended \dtrack{} then queues all (other)
 Let denote $E_p$ as the routing event of path $p$ described previously
 and let $|E_p|$ be the time interval starting from the detection of the routing event
 until the ending of the remapping of the last \emph{overlapping path}
-originated by $E_p$
+originated by $E_p$.
 If an \emph{overlapping path} $q$ enqueued by some $E_p$ changed, we do not consider
-it as a new routing event once it can $E_q$ overlaps and enqueue path $p$ during
+it as a new routing event once it can overlaps and enqueue path $p$ during
 $|E_p|$. If paths $p$ and $q$ change overtime, the routing event $E_p$ can never
 end. Also, we set a minimum time interval between routing events for a same
 destination to avoid a unstable path $p$ being detect as a routing event very
@@ -86,7 +86,8 @@ path changes, of the time it takes to remap all
 overlapping paths ($|E_p|$) grouped in 5-minute intervals.  
 Because we remap overlapping paths within
 a short period, there is a lower probability that subsequent routing
-events will happen while the remap is ongoing. 
+events will happen while the remap is ongoing.
+
 Figure~\ref{fig:overlap.quantity.cdf} shows the CDF, over all
 detected path changes, of the fraction of paths that overlap with $E_p$.  
 We observe that 73.68\% of all routes have at least one 
@@ -101,7 +102,7 @@ consider each $\lczd$ in $E_p$ independently and we use the notation $E_p[\lczd]
 to indicate it. 
 
 Let $O$ denote the overlap between an \emph{overlapping path} $q$ and a 
-$E_p[\lczd]$, i.e., $O = E_p[lczd],\cap\,q$. The next step 
+$E_p[\lczd]$, i.e., $O = E_p[\lczd],\cap\,q$. The next step 
 is to analyze whether an \emph{overlapping path} changes given $O$.
 Figure~\ref{fig:overlap.change.prob} shows
 the fraction of overlapping paths that have changed as well, grouping
