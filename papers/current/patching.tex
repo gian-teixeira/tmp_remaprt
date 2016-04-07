@@ -96,7 +96,7 @@ As described in section~\ref{sec:char}, a path can have more than one
 $\lczd$. This means that if $E_p$ has more than one $\lczd$, the \emph{overlapping
 paths} can cross different parts of $E_p$. Thus, we can divide $E_p$ in a more
 fine-grained parts ($\lczd$) which can explain better the behaviour of changes in
-\emph{overlapping paths} in $E_p$. For the rest of this section, we
+\emph{overlapping paths}. For the rest of this section, we
 consider each $\lczd$ in $E_p$ independently and we use the notation $E_p[\lczd]$ 
 to indicate it. 
 
@@ -127,13 +127,14 @@ to determine if $q$ changed. A study on the effectiveness of $r_d$ and $r_c$
 from $E_p[\lczd]$ in the change detection in \emph{overlapping path}, i.e.,
 $r_d \cap OCS$ and $r_c \cap OCS$ reveals that in 99.56\% of times 
 $r_d \cap OCS = \emptyset$ and in 91.12\% $r_c \cap OCS = \emptyset$.
-For this reason, we exclude the $r_d$ and $r_c$ from $CPS$ 
+For this reason, we exclude the $r_d$ and $r_c$ from $CPS$.
 
-From all 67 millions overlap found, 66\% of cases crosses overlapping paths 
+Analyzing all 67 millions overlap found, 66\% of cases crosses overlapping paths 
 that does not have any change ($OCS = \emptyset$) and 4,83\% of overlaps have 
 $OCS \ne \emptyset$ but $CPS \cap OCS = \emptyset$, 
-i.e., we are not able to detect a change directly by an overlap inside the 
-routing event. We now focus on the 29.07\% of overlaps such that $CPS \cap OCS \ne \emptyset$
+i.e., we are not able to detect a change in the \emph{overlapping path}
+based on the overlap it have with $E_c[\lczd]$. 
+We now focus on the 29.07\% of overlaps such that $CPS \cap OCS \ne \emptyset$
 where we can make a contribution. Figure~\ref{fig:lczd.intersection}  
 shows the distribution of the number of hops in $CPS$ that are in a $OCS$ by the size of $CPS$,
 i.e., $|(CPS \cap OCS)| \div |CPS|$.  The distribution shows that,
