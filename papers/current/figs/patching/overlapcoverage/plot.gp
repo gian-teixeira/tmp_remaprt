@@ -2,7 +2,7 @@ set term postscript eps enhanced "Helvetica,30";
 set encoding utf8;
 unset title;
 set output "overlapcoverage_only_lczd.eps";
-set xlabel "% of CPS that are in OCS"
+set xlabel "% of CPS that detect change"
 set ylabel "Cumul. Fraction of Routing Events" offset 1.5,0;
 set xrange [0:1];
 set yrange [0:1];
