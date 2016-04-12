@@ -1,0 +1,4 @@
+sort -nk2,2 aux > cps_bigger_0.txt
+awk '{s+= $1}END{print s}' cps_bigger_0.txt
+awk '{print $1/20140495,$2}' cps_bigger_0.txt > cps_bigger_0.perc
+awk '{s+= $1; print $2,s}' cps_bigger_0.perc > cps_bigger_0.cdf

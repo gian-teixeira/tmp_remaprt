@@ -119,7 +119,10 @@ Thus, we start with a definition containing all radii between
 the first (closest to the source) and last (furthest from the source) 
 hops in $O(\lczd(r'), q)$, denoted by \emph{candidate probing
 set} $\cps(q)$, which detects all changes (if any) related to $O$ in an
-overlapping path. 
+overlapping path. Changes not related to $\lczd(r')$ are disconsidered 
+from this analysis because we are unable to detect them based only
+in the information from the routing event.
+
 
 We find that probing the divergence hop $p_{i-1}[r^\prime_d]$ on the
 overlapping path (i.e., probing radii $q\langle p_{i-1}[r^\prime_d]
@@ -139,6 +142,12 @@ $p_{i-1}[r^\prime_d]$.  In this case, $\cps(q)$ is unchanged.}
 
 % rarely no branch = 0.4%
 % rarely no join onde nao muda o length = XXX%
+% if we looking for join as described (different size lczd), 
+%we have 18 million of overlaps that match the query (i.e., has join in the
+%overlap).
+% In 23% of them, join is capable to detect a change in the
+% overlapping path. If we consider overlaps in join ignoring the lczd size, we
+% have 38M of overlaps detecting only 9% of changes. 
 
 \figstr~\ref{fig:lczd.intersection} shows the distribution
 of the fraction of radii in $\cps(q)$ that can detect a change.  The
@@ -146,9 +155,11 @@ distribution shows that, for 97\% of the overlapping paths that
 changed, probing any radii in $\cps(q)$ will detect a change, i.e.,
 probing almost any radii in $\cps(q)$ will detect the change.
 
-\paragraphnd{Finding paths that change.}  We find that only 66\%
-overlapping paths change.  Although the results above look
-promising, they only apply to the 34\% of overlapping paths that
+\paragraphnd{Finding paths that change.}  We find that 67\%
+overlapping paths do not change and 5\% has a change not detectable
+by any hop in $\cps$, i.e., is not related to $O$.  Although the 
+results above look
+promising, they only apply to the 28\% of overlapping paths that
 change.  We now look at mechanisms to efficiently identify which
 paths have changed and which have not.
 \figstr~\ref{fig:overlap.change.prob} shows, over all routing
@@ -169,6 +180,17 @@ where we are headed right now.)
 \label{fig:overlap.change.prob}
 \end{center}
 \end{figure}
+
+
+\section{Other results}
+\begin{figure}
+\begin{center}
+\includegraphics[width=1.05\columnwidth]{figs/patching/cpssize/cpssize.eps}
+\caption{CPS size}
+\label{fig:cps.size}
+\end{center}
+\end{figure}
+
 
 % As described in Section~\ref{sec:char}, a path can have more than
 % one change. This means that if $E(p_{i-1})$, has more than one
