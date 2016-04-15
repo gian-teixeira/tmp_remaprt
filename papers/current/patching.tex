@@ -64,29 +64,31 @@ immediately if there are no ongoing remaps).  We extended \dtrack{}
 to collect data to study techniques for remapping paths after
 detection of a \emph{routing event}.  After remapping of path
 $p_{i-1}$ is complete, our extended \dtrack{} computes $\lczd(r')$
-and proceeds to immediately remap all other paths that could be
-impacted by the routing event.  More precisely, \dtrack{} enqueues
-all (other) \emph{overlapping paths} $q$ which intersect
-$\lczd(r')$, i.e., $q\, \cap\,\lczd(r') \ne \emptyset$, for
-remapping (if not already queued).  Although this approach does not
-guarantee \dtrack{} remaps all paths impacted by the routing event,
-it still provides a more accurate snapshot of a routing event.  If
-\dtrack{} detects a change in an overlapping path (remapped due to
+and proceeds to remap all other paths that could be impacted by the
+routing event.  More precisely, \dtrack{} enqueues all (other)
+\emph{overlapping paths} $q$ which intersect $\lczd(r')$, i.e., $q\,
+\cap\,\lczd(r') \ne \emptyset$, for remapping (if not already
+queued).  Although this approach does not guarantee \dtrack{} remaps
+all paths impacted by the routing event, e.g., impacted paths that
+are not monitored or that do not overlap $\lczd(r')$, it still
+provides a more accurate snapshot of a routing event.  If \dtrack{}
+detects a change in an overlapping path (remapped due to
 a previously-detected routing event), \dtrack{} does not consider
 the change a new routing event and does not enqueue paths for
 remapping.  To prevent flapping routes and measurement noise from
-enqueueing a constant stream of remappings, \dtrack{} limits the
-number of remapped routing events per monitored path to four over
-the last 24~hours.
+constantly detecting routing events (and enqueuing path remaps),
+\dtrack{} remaps at most four routing events per path over the last
+24~hours.
 
-We deployed the extended \dtrack{} on 80 PlanetLab nodes using three
-sources of destinations: Alexa's TOP100 Websites,  RIPE Atlas
-probes, and random reachable /24 prefixes. The total number of
-destinations is 12763, which cover 5715 ASes using IP-to-AS mapping
-information from iPlane. For each PlanetLab node, we selected 1000
-random IP addresses to be monitored, allowing overlap among these IP
-addresses across nodes. The data used in this analysis was collected
-between Jan.~27th and Mar.~7th, 2016 (40 days).
+We deployed the extended \dtrack{} on 80 PlanetLab nodes. We
+generated a list of 12763 destinations including Alexa's TOP100
+Websites (resolved from the 80 PlanetLab nodes), 2000 RIPE Atlas
+probes chosen at random, and 10000 random reachable /24 prefixes.
+The list of destinations covers 5715 ASes (computed using IP-to-AS
+mapping information from iPlane). On each PlanetLab node, we
+selected 1000 random IP addresses to be monitored.  The data used in
+this analysis was collected between Jan.~27th and Mar.~7th, 2016 (40
+days).
 
 % Let us denote the routing event by $E(p_{i-1})$ and let
 % $D(E(p_{i-1}))$ be the time spent to remap all overlapping routes.
@@ -103,25 +105,26 @@ that overlap with $\lczd(r')$.  We observe that 74\% of routing
 events have at least one overlapping path, that most routing events
 have a small (but significant) fraction of overlapping paths, and
 that a few events (close to the monitoring node) impact all
-monitored paths.
+monitored paths. \ed{TODO FIX FIX}
 
-\paragraphnd{Efficient change detection.}  We now want to find a way
-to identify whether an overlapping path has changed or remained
-stable using few probes.  To this end, we consider sending probes to
-overlapping paths at specific radii and checking for a change.  Let
-$O(\lczd(r'), q)$ denote the overlap between the local change zone
-domain $\lczd(r')$ for a routing event and an overlapping path $q$,
-i.e., $\lczd(r')\cap{}q$. Although $O$ appears to be a good set to
-probe in order to detect changes in an overlapping path, it clearly 
-misses changes in hops that do not overlap with $\lczd(r')$ but are
-between hops in $O$, e.g., differences caused by load balancing.  
-Thus, we start with a definition containing all radii between 
-the first (closest to the source) and last (furthest from the source) 
-hops in $O(\lczd(r'), q)$, denoted by \emph{candidate probing
-set} $\cps(q)$, which detects all changes (if any) related to $O$ in an
-overlapping path. Changes not related to $\lczd(r')$ are disconsidered 
-from this analysis because we are unable to detect them based only
-in the information from the routing event.
+\paragraphnd{Efficient change detection.}  We want to find an
+algorithm to identify whether an overlapping path has changed or
+remained stable using few probes.  To this end, we consider sending
+probes to overlapping paths at specific radii and checking for
+a change.  Let $O(\lczd(r'), q)$ denote the overlap between the
+local change zone domain $\lczd(r')$ for a routing event and an
+overlapping path $q$, i.e., $\lczd(r')\cap{}q$. Although $O$ appears
+to be a good set to probe in order to detect changes in an
+overlapping path, it clearly misses changes in hops that do not
+overlap with $\lczd(r')$ but are between hops in $O$, e.g.,
+differences caused by load balancing.  Thus, we start with
+a definition containing all radii between the first (closest to the
+source) and last (furthest from the source) hops in $O(\lczd(r'),
+q)$, denoted by \emph{candidate probing set} $\cps(q)$, which
+detects all changes (if any) related to $O$ in an overlapping path.
+Changes not related to $\lczd(r')$ are disconsidered from this
+analysis because we are unable to detect them based only in the
+information from the routing event.
 
 
 We find that probing the divergence hop $p_{i-1}[r^\prime_d]$ on the
