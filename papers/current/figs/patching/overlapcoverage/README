@@ -1,3 +1,4 @@
-#awk '{if (NR>1) s+=$2}END{print s}' overlap.coverage.txt
-#awk '{if (NR>1) print $1,($2/0.279272)}' overlap.coverage.txt > overlap.coverage.only.lczd.txt
-#awk '{s+=$2; print $1,s}' overlap.coverage.only.lczd.txt > overlap.coverage.only.lczd.cdf
+cp /mnt/data2/elverton/TopoMap/experiments/Graphs/results_overlap_between_bj/dots/out_cdf_changed_overlap_between_bj.txt overlap.coverage.txt
+R = awk '{if (NR>1) s+=$2}END{print s}' overlap.coverage.txt
+awk '{if (NR>1) print $1,($2/R)}' overlap.coverage.txt > overlap.coverage.only.lczd.txt
+awk '{s+=$2; print $1,s}' overlap.coverage.only.lczd.txt > overlap.coverage.only.lczd.cdf

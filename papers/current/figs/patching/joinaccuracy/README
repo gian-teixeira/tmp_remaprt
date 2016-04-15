@@ -1,0 +1,3 @@
+cp /mnt/data2/elverton/TopoMap/experiments/Graphs/results_only_j_detection/dots/out_cdf_changed_overlap_only_j.txt join.acc.txt
+awk '{s+=$2;print $1,s}'  join.acc.txt > join.acc.cdf
+gnuplot plot.py
