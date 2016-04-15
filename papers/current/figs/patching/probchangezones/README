@@ -1,0 +1,4 @@
+awk '{s+=$2/9290204; print $1,$2/9290204,s}' zones_changes.txt > zones_changes.perc
+awk '{s+=$2/50211578; print $1,$2/50211578,s}' zones_overlap.txt > zones_overlap.perc
+awk '{print $1/999,$0}' changes.perc > aux
+awk '{print $1/999,$0}' overlaps.perc > aux
