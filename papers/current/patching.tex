@@ -140,14 +140,11 @@ $\cps(q)$ otherwise.
 $O(\lczd(r'), q)$.  This happens whenever $q$ does not traverse
 $p_{i-1}[r^\prime_d]$.  In this case, $\cps(q)$ is unchanged.}
 
-% rarely no branch = 0.4%
+% rarely no branch = 0.54%
 % rarely no join onde nao muda o length = XXX%
 % if we looking for join as described (different size lczd), 
-%we have 18 million of overlaps that match the query (i.e., has join in the
-%overlap).
-% In 23% of them, join is capable to detect a change in the
-% overlapping path. If we consider overlaps in join ignoring the lczd size, we
-% have 38M of overlaps detecting only 9% of changes. 
+% we have 13.5 million of overlaps that match the query (i.e., has join in the
+% overlap). In overlaps that has a change, join is able to detect 75% of them.
 
 \figstr~\ref{fig:lczd.intersection} shows the distribution
 of the fraction of radii in $\cps(q)$ that can detect a change.  The
@@ -155,11 +152,11 @@ distribution shows that, for 97\% of the overlapping paths that
 changed, probing any radii in $\cps(q)$ will detect a change, i.e.,
 probing almost any radii in $\cps(q)$ will detect the change.
 
-\paragraphnd{Finding paths that change.}  We find that 67\%
+\paragraphnd{Finding paths that change.}  We find that 76\%
 overlapping paths do not change and 5\% has a change not detectable
 by any hop in $\cps$, i.e., is not related to $O$.  Although the 
 results above look
-promising, they only apply to the 28\% of overlapping paths that
+promising, they only apply to the 19\% of overlapping paths that
 change.  We now look at mechanisms to efficiently identify which
 paths have changed and which have not.
 \figstr~\ref{fig:overlap.change.prob} shows, over all routing
@@ -171,7 +168,7 @@ with the change), the higher the probability that the overlapping
 path will change.  (This is more preliminary, but gives an idea
 where we are headed right now.)
 
-% cps cannot detect 4,83\% of changes
+% cps cannot detect 5,7\% of changes
 
 \begin{figure}
 \begin{center}
