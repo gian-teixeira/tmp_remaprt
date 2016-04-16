@@ -93,19 +93,19 @@ days).
 % Let us denote the routing event by $E(p_{i-1})$ and let
 % $D(E(p_{i-1}))$ be the time spent to remap all overlapping routes.
 
-Figure~\ref{fig:overlap.delay.cdf} shows the CDF, over all remapped
-routing events, of the time it takes to remap each event's
-overlapping routes.  We round values to the nearest 5-minute
-boundary.  Because we remap overlapping paths within a short period
-(usually within one hour), there is a lower probability that
-subsequent routing events will happen while the remap is ongoing.
+Figure~\ref{fig:overlap.delay.cdf} shows the CDF, over all routing
+events, of the time it takes to remap each event's overlapping
+routes.  We round values to the nearest 5-minute boundary.  Because
+we remap overlapping paths within a short period (usually within one
+hour), there is a lower probability that subsequent routing events
+will happen while the remap is ongoing.
 Figure~\ref{fig:overlap.quantity.cdf} shows the CDF, over all
 detected routing events, of the fraction of the 1000 monitored paths
 that overlap with $\lczd(r')$.  We observe that 74\% of routing
 events have at least one overlapping path, that most routing events
 have a small (but significant) fraction of overlapping paths, and
 that a few events (close to the monitoring node) impact all
-monitored paths. \ed{TODO FIX FIX}
+monitored paths.
 
 \paragraphnd{Efficient change detection.}  We want to find an
 algorithm to identify whether an overlapping path has changed or
@@ -113,19 +113,16 @@ remained stable using few probes.  To this end, we consider sending
 probes to overlapping paths at specific radii and checking for
 a change.  Let $O(\lczd(r'), q)$ denote the overlap between the
 local change zone domain $\lczd(r')$ for a routing event and an
-overlapping path $q$, i.e., $\lczd(r')\cap{}q$. Although $O$ appears
-to be a good set to probe in order to detect changes in an
-overlapping path, it clearly misses changes in hops that do not
-overlap with $\lczd(r')$ but are between hops in $O$, e.g.,
-differences caused by load balancing.  Thus, we start with
-a definition containing all radii between the first (closest to the
-source) and last (furthest from the source) hops in $O(\lczd(r'),
-q)$, denoted by \emph{candidate probing set} $\cps(q)$, which
-detects all changes (if any) related to $O$ in an overlapping path.
-Changes not related to $\lczd(r')$ are disconsidered from this
-analysis because we are unable to detect them based only in the
-information from the routing event.
+overlapping path $q$, i.e., $\lczd(r')\cap{}q$.  We consider
+a \emph{candidate probing set} $\cps(q)$ containing all radii
+between the first (closest to the source) and last (furthest from
+the source) hops in $O(\lczd(r'), q)$.  We consider all intermediate
+radii, even though the hops at some intermediate radii may not be in
+$\lczd(r')$,\footnotemark{} to guarantee $\cps(q)$ can detect all
+path changes that overlap $\lczd(r')$.
 
+\footnotetext{For example, due to a per-destination load
+balancer~\cite{veitch09balancer}.}
 
 We find that probing the divergence hop $p_{i-1}[r^\prime_d]$ on the
 overlapping path (i.e., probing radii $q\langle p_{i-1}[r^\prime_d]
@@ -143,33 +140,36 @@ $\cps(q)$ otherwise.
 $O(\lczd(r'), q)$.  This happens whenever $q$ does not traverse
 $p_{i-1}[r^\prime_d]$.  In this case, $\cps(q)$ is unchanged.}
 
+% Changes not related to $\lczd(r')$ are disconsidered from this
+% analysis because we are unable to detect them based only in the
+% information from the routing event.
+
 % rarely no branch = 0.54%
 % rarely no join onde nao muda o length = XXX%
 % if we looking for join as described (different size lczd), 
 % we have 13.5 million of overlaps that match the query (i.e., has join in the
 % overlap). In overlaps that has a change, join is able to detect 75% of them.
 
-\figstr~\ref{fig:lczd.intersection} shows the distribution
-of the fraction of radii in $\cps(q)$ that can detect a change.  The
-distribution shows that, for 94\% of the overlapping paths that
-changed, probing any radii in $\cps(q)$ will detect a change, i.e.,
-probing almost any radii in $\cps(q)$ will detect the change.
+\figstr~\ref{fig:lczd.intersection} shows, over all overlapping
+paths that changed, the distribution of the fraction of radii in
+$\cps(q)$ that can detect the change.  The distribution shows that
+probing most radii in $\cps(q)$ will detect the change and
+that, for 94\% of the overlapping paths that changed, probing
+\emph{any} radii in $\cps(q)$ will detect the change.
 
-\paragraphnd{Finding paths that change.}  We find that 76\%
-overlapping paths do not change and 5\% has a change not detectable
-by any hop in $\cps$, i.e., is not related to $O$.  Although the 
-results above look
-promising, they only apply to the 19\% of overlapping paths that
-change.  We now look at mechanisms to efficiently identify which
-paths have changed and which have not.
+\paragraphnd{Finding paths that change.} The results above show we
+can identify, with high probability, whether an overlapping path has
+changed or not with a single probe.  However, they only apply to the
+20\% of overlapping paths that do change.  We now look at mechanisms
+to efficiently identify which paths have changed and which have not.
 \figstr~\ref{fig:overlap.change.prob} shows, over all routing
 events, the fraction of overlapping paths that changed.  We group
 overlapping paths on the $x$ axis by the size of the overlap $O$
-relative to $\lczd(r')$, i.e., $|O|/|\lczd|$.  We note that as
-overlapping paths have bigger overlaps (i.e., have more in common
+relative to $\lczd(r')$, i.e., $|O|/|\lczd|$.  We note that the
+bigger overlaps (i.e., when overlapping paths have more in common
 with the change), the higher the probability that the overlapping
-path will change.  (This is more preliminary, but gives an idea
-where we are headed right now.)
+path will change.  \ed{This is more preliminary, but gives an idea
+where we are headed right now.}
 
 % cps cannot detect 5,7\% of changes
 
