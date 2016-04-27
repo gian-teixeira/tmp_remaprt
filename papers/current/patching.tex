@@ -212,9 +212,9 @@ are not uniform.
 \begin{algorithm}[h]
 \caption{Change detection in routing event (\secstr~\ref{sec:patching})}
 
-Sort overlapping paths by $|O|/|\lczd|$ and reverse\;
+R = Sort overlapping paths by $|O|/|\lczd|$ and reverse\;
 
-\textbf{foreach} $\cps(q) \in g(\cps(q))$\textbf{:} 
+\textbf{foreach} $\cps(q) \in R$\textbf{:} 
 
 \Indp
 measure(first hop in $\cps(q)$)
