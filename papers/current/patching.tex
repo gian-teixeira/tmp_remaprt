@@ -215,20 +215,27 @@ are not uniform.
 Sort overlapping paths by $|O|/|\lczd|$ and reverse\;
 
 \textbf{foreach} $\cps(q) \in g(\cps(q))$\textbf{:} 
+
 \Indp
 measure(first hop in $\cps(q)$)
 
 \textbf{if} $\cps(q)$ is marked as not changed\textbf{:}
-    
+  
+    \Indp
     Next overlapping path\;
+    \Indm
 
 \textbf{if} changed($\cps(q)$) $=$ False\textbf{:}
     
+    \Indp
     Mark $\cps(q)$ as a CPS that does not changed\;
+    \Indm
 
 \textbf{else:}
     
+    \Indp
     remaprt(overlapping path $q$, ttl($q$,first hop in $\cps(q)$)\;
+    \Indm
 
 Next overlapping path\;
 
