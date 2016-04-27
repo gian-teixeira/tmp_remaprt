@@ -176,14 +176,15 @@ previously to improve the tracking path changes system
 in \dtrack. As discussed before,\figstr~\ref{fig:overlap.quantity.cdf}  
 shows that a routing event can have more than one overlapping path
 which implies that overlapping paths can have the same
-$\cps(q)$ in the same event which we define as $g(\cps(q))$
+$\cps(q)$ in a event. We define as $g(\cps(q))$ the group of overlapping paths
+with the same $\cps(q)$ in a routing event.
 \figstr~\ref{fig:cps.change.prob} shows the probability of 
 $g(\cps(q))$ changes, i.e., $|changes(g(\cps(q)))|/|g(\cps(q))|$. 
 We note that 85\% of all CPS are in $g(\cps(q))$ that have a uniform change
 pattern (changed or remain unchanged) among all overlapping
 paths. 
 
-Now, we are able to present an algorithm to detect
+We now present an algorithm to detect
 changes with low cost. The algorithm probes the overlapping paths with
 a high overlap with $\lczd$, keeping a track of those $\cps(q)$ which a probe
 detected no change. We use this information to skip others overlapping paths 
