@@ -171,12 +171,34 @@ with the change), the higher the probability that the overlapping
 path will change.  \ed{This is more preliminary, but gives an idea
 where we are headed.}
 
+\paragraphnd{Reducing the number of probes with routing event.} We
+now want to use the concept of a routing event defined
+previously to improve the tracking path changes system
+in \dtrack. As discussed before,\figstr~\ref{fig:overlap.quantity.cdf}  
+shows that a routing event can have more than one overlapping path
+which implies that overlapping paths can have the same
+$\cps(q)$ in the same event which we define as $g(\cps(q))$
+\figstr~\ref{fig:cps.change.prob} shows the probability of 
+$g(\cps(q))$ changes, i.e., $|changes(g(\cps(q)))|/|g(\cps(q))|$. 
+We note that 85\% of all CPS are in $g(\cps(q))$ that have a uniform change
+pattern (changed or remain unchanged) among all overlapping
+paths. Now, we are able to present an algorithm to detect
+changes with low cost. The algorithm
+
 % cps cannot detect 5,7\% of changes
 
 \begin{figure}
 \begin{center}
 \includegraphics[width=1.05\columnwidth]{figs/patching/probchange/probchange.eps}
 \caption{Probability of change as a function of overlap size.}
+\label{fig:overlap.change.prob}
+\end{center}
+\end{figure}
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=1.05\columnwidth]{figs/patching/probcpschange/prob_cps.eps}
+\caption{Probability of change of identical CPS inside a same routing event.}
 \label{fig:overlap.change.prob}
 \end{center}
 \end{figure}
