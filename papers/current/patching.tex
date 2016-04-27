@@ -181,8 +181,58 @@ $\cps(q)$ in the same event which we define as $g(\cps(q))$
 $g(\cps(q))$ changes, i.e., $|changes(g(\cps(q)))|/|g(\cps(q))|$. 
 We note that 85\% of all CPS are in $g(\cps(q))$ that have a uniform change
 pattern (changed or remain unchanged) among all overlapping
-paths. Now, we are able to present an algorithm to detect
-changes with low cost. The algorithm
+paths. 
+
+Now, we are able to present an algorithm to detect
+changes with low cost. The algorithm probes the overlapping paths with
+a high overlap with $\lczd$, keeping a track of those $\cps(q)$ which a probe
+detected no change. We use this information to skip others overlapping paths 
+with the same $\cps(q)$ in the routing event. \figstr~\ref{fig:savings.comp}
+shows a comparative between techniques. The oracle represents an algorithm that
+knows exactly where to send a probe in order to detect a change, i.e., 
+it is the lower bound, and the sequential algorithm probes all overlapping paths,
+i.e., it is the upper bound. We note that our algorithm is near the optimal
+for low budget values but becomes stable after a certain budget value
+once we are not able to detect overlapping paths that changed in $g(\cps(q))$ that 
+are not uniform.  
+
+\ed{We need to improve this part with the following:
+\begin{itemize}
+    \item Improve the probing process in routing events to probe mixed
+    $g(\cps(q))$.
+    \item Optimize the probing system by adjust the budget among routing events
+    automatically.
+    \item Verify if we can apply a new path of overlapping path to others with
+    the same $\cps(s)$ in a routing event.
+\end{itemize}
+}
+    
+
+
+\begin{algorithm}[h]
+\caption{Change detection in routing event (\secstr~\ref{sec:patching})}
+
+Sort overlapping paths by $|O|/|\lczd|$ and reverse\;
+
+\textbf{foreach} $\cps(q) \in g(\cps(q))$\textbf{:} 
+\Indp
+measure(first hop in $\cps(q)$)
+
+\textbf{if} $\cps(q)$ is marked as not changed\textbf{:}
+    
+    Next overlapping path\;
+
+\textbf{if} changed($\cps(q)$) $=$ False\textbf{:}
+    
+    Mark $\cps(q)$ as a CPS that does not changed\;
+
+\textbf{else:}
+    
+    remaprt(overlapping path $q$, ttl($q$,first hop in $\cps(q)$)\;
+
+Next overlapping path\;
+
+\end{algorithm}
 
 % cps cannot detect 5,7\% of changes
 
@@ -199,6 +249,14 @@ changes with low cost. The algorithm
 \includegraphics[width=1.05\columnwidth]{figs/patching/probcpschange/prob_cps.eps}
 \caption{Probability of change of identical CPS inside a same routing event.}
 \label{fig:cps.change.prob}
+\end{center}
+\end{figure}
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=1.05\columnwidth]{figs/patching/comparative/change_detect.eps}
+\caption{Probability of change of identical CPS inside a same routing event.}
+\label{fig:savings.comp}
 \end{center}
 \end{figure}
 
