@@ -157,6 +157,24 @@ probing most radii in $\cps(q)$ will detect the change and
 that, for 94\% of the overlapping paths that changed, probing
 \emph{any} radii in $\cps(q)$ will detect the change.
 
+
+\paragraphnd{Finding paths that change.} The results above show we
+can identify, with high probability, whether an overlapping path has
+changed or not with a single probe.  However, they only apply to the
+20\% of overlapping paths that do change.  We now look at mechanisms
+to efficiently identify which paths have changed and which have not.
+As discussed before,\figstr~\ref{fig:overlap.quantity.cdf}  
+shows that a routing event can have more than one overlapping path
+which implies that overlapping paths can have the same
+$\cps(q)$ in a event. \figstr~\ref{fig:cps.change.prob} shows the probability of 
+a CPS group changes inside a routing event. We note that 85\% of all CPS groups 
+have a uniform change pattern (changed or remain unchanged) among all overlapping
+paths that composes it. 
+
+
+
+
+
 \paragraphnd{Finding paths that change.} The results above show we
 can identify, with high probability, whether an overlapping path has
 changed or not with a single probe.  However, they only apply to the
@@ -170,19 +188,7 @@ bigger the overlap (i.e., when overlapping paths have more in common
 with the change), the higher the probability that the overlapping
 path will change.  
 
-\paragraphnd{Reducing the number of probes with routing event.} We
-now want to use the concept of a routing event defined
-previously to improve the tracking path changes system
-in \dtrack. As discussed before,\figstr~\ref{fig:overlap.quantity.cdf}  
-shows that a routing event can have more than one overlapping path
-which implies that overlapping paths can have the same
-$\cps(q)$ in a event. We define as $g(\cps(q))$ the group of overlapping paths
-with the same $\cps(q)$ in a routing event.
-\figstr~\ref{fig:cps.change.prob} shows the probability of 
-$g(\cps(q))$ changes, i.e., $|changes(g(\cps(q)))|/|g(\cps(q))|$. 
-We note that 85\% of all CPS are in $g(\cps(q))$ that have a uniform change
-pattern (changed or remain unchanged) among all overlapping
-paths. 
+\paragraphnd{Reducing the number of probes with routing event.} 
 
 We now present an algorithm to detect
 changes with low cost. The algorithm probes the overlapping paths with
