@@ -179,6 +179,7 @@ void confirm_destroy(struct confirm *confirm) /* {{{ */
 } /* }}} */
 
 void confirm_query(struct confirm *confirm, struct confirm_query *query) { /* {{{ */
+	log_line(__func__,__LINE__,"");
 	struct event *ev = event_create(EVENT_QUERY, query);
 	if(!ev) return;
 	confirm_sendevent(confirm, ev);
@@ -193,6 +194,7 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 	struct confirm *confirm = (struct confirm *)vconfirm;
 
 	while(1) {
+		log_line(__func__,__LINE__,"-- confirm thread work start");
 		int code;
 		struct event *ev;
 
@@ -207,7 +209,7 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 			event_destroy(evv);
 			pthread_mutex_lock(&confirm->evlist_mut);
 		}
-
+		
 		pthread_cleanup_push(confirm_mutex_unlock,
 				&(confirm->evlist_mut));
 		if(pavl_count(confirm->events) == 0) {
@@ -218,8 +220,16 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 		} else {
 			struct pavl_traverser trav;
 			ev = pavl_t_first(&trav, confirm->events);
+
+			// Este restante demora para executar
+			// Pela especificação da função, ela espera ev->time para sair
+			char time[100];
+			snprintf(time,19,"time waiting start %d",ev->time.tv_nsec);
+			printf("wait : %d\n", ev->time.tv_nsec);
+			log_line(__func__,__LINE__,time);
 			code = pthread_cond_timedwait(&confirm->event_cond,
 					&confirm->evlist_mut, &ev->time);
+			log_line(__func__,__LINE__,"timed waiting finished");
 		}
 		pthread_cleanup_pop(0);
 
@@ -236,6 +246,7 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 			event_run(confirm, ev);
 			event_destroy(ev);
 		}
+		log_line(__func__,__LINE__,"-- confirm thread work end");
 	}
 } /* }}} */
 
@@ -398,6 +409,7 @@ static void event_run_schednext(struct confirm *conf,
 		timespec_add(query->lastpkt, query->timeout, &newev->time);
 		pavl_assert_insert(conf->events, newev);
 	}
+
 }
 
 static void event_run_query(struct confirm *conf, struct event *ev)
@@ -406,6 +418,7 @@ static void event_run_query(struct confirm *conf, struct event *ev)
 	assert(ev->type == EVENT_QUERY);
 	char addr[INET_ADDRSTRLEN];
 	if(!inet_ntop(AF_INET, &query->dst, addr, INET_ADDRSTRLEN)) goto out;
+	
 	logd(LOG_EXTRA, "query dst=%s ttl=%d flowid=%d\n", addr, query->ttl,
 				query->flowid);
 
@@ -420,7 +433,6 @@ static void event_run_query(struct confirm *conf, struct event *ev)
 	newev->time = query->start;
 	event_run_sendpacket(conf, newev);
 	event_destroy(newev);
-
 	return;
 
 	out_dup:
@@ -501,6 +513,7 @@ static void event_run_answer(struct confirm *conf, struct event *ev)
 			dump, ev->query->ttl, ev->query->flowid);
 	out:
 	confirm_query_destroy(ev->query);
+
 } /* }}} */
 
 /*****************************************************************************

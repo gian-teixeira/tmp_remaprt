@@ -14,6 +14,7 @@
 #include "pavl.h"
 #include "tqueue.h"
 #include "timespec.h"
+#include "path.h"
 
 #include "remap.h"
 
@@ -25,7 +26,10 @@
  * declarations
  ****************************************************************************/
 struct remap {
-	struct path *path;
+	/* New members that supports offline remaps */
+	struct path *old_path;
+	struct path *new_path;
+
 	struct prober *prober;
 	struct tqueue *tq;
 	uint8_t startttl;
@@ -49,7 +53,6 @@ static void remap_cb_hop(uint8_t ttl, int nprobes, struct pathhop *hop,
 static void remap_cb_iface(uint8_t ttl, uint8_t flowid, struct iface *i,
 		void *rmp);
 
-
 /*****************************************************************************
  * public implementations
  ****************************************************************************/
@@ -57,11 +60,14 @@ void remap(const struct opts *opts) /* {{{ */
 {
 	struct remap *rmp = remap_create(opts);
 	if(!rmp) goto out;
+	if(rmp->startttl > path_length(rmp->old_path)) goto out_length;
 
-	if(rmp->startttl > path_length(rmp->path)) goto out_length;
-
+	/* Remap origin */
 	struct pathhop *hop = remap_get_hop(rmp, rmp->startttl);
 
+	/* If the router at start ttl can not be accessed, decrement the position
+	   until the access is possible. If no router responds, the remap is
+	   not executed */
 	while(pathhop_is_star(hop) && rmp->startttl > 0) {
 		logd(LOG_INFO, "%s: unresp hop, decreasing ttl\n", __func__);
 		rmp->startttl--;
@@ -69,17 +75,28 @@ void remap(const struct opts *opts) /* {{{ */
 	}
 	if(pathhop_is_star(hop)) goto out;
 
-	int ttl = path_search_hop(rmp->path, hop, 0);
+	/* Position if the origin in the old path. If it is equal to the position
+	   in the new path, no remap is necessary. If the hop was not present, then
+	   it can be used to start the remap itself. Else, the binary is used to
+	   find a hop that fit the last condition */
+	int ttl = path_search_hop(rmp->old_path, hop, 0);
+
 	if(ttl == rmp->startttl) {
+		/* The hop is already correct */
 		logd(LOG_INFO, "%s: no remap to do\n", __func__);
-	} else if(ttl == -1) {
+	}
+	else if(ttl == -1) {
+		/* The hop is wrong itself. No search necessary */
 		logd(LOG_INFO, "%s: starting with local remap\n", __func__);
 		remap_local(rmp, rmp->startttl, 0, 1);
-	} else {
+	} 
+	else {
+		/* The hop is shifted. Search used */
 		logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
 		remap_binary(rmp, 0, rmp->startttl);
 	}
 
+	/* Taking the garbage and handle with the errors */
 	remap_print_result(rmp);
 	remap_destroy(rmp);
 	return;
@@ -91,28 +108,32 @@ void remap(const struct opts *opts) /* {{{ */
 	printf("remap failed. (try checking the logs)\n");
 } /* }}} */
 
-static int remap_local(struct remap *rmp, int ttl, int minttl, /* {{{ */
-		int first)
-{
+static int remap_local(struct remap *rmp, int ttl, int minttl, int first)
+{\
 	struct pathhop *hop;
 	int branch = ttl;
+
+	/* Finds the ttl where the old path and new path diverge.
+	   For that, walks on the path in left direction. */
 	do {
 		assert(branch >= 0);
-		logd(LOG_INFO, "%s: looking for branch at ttl %d\n",
-				__func__, branch);
+		logd(LOG_INFO, "%s: looking for branch at ttl %d\n", __func__, branch);
 		hop = remap_get_hop(rmp, branch);
 		branch--;
-	} while(pathhop_is_star(hop) ||
-			path_search_hop(rmp->path, hop, 0) == -1);
-	int p1branch = path_search_hop(rmp->path, hop, 0);
+	} while(pathhop_is_star(hop) || 
+			path_search_hop(rmp->old_path, hop, 0) == -1);
+	
+	/* Saves the position of the branch in the old path */
+	int oldpath_branch_ttl = path_search_hop(rmp->old_path, hop, 0);
 	branch++;
-
+	
+	/* Like the last task, finds the ttl where the paths converge.
+	   Works in right direction. */
 	int join = ttl + 1;
 	int join_last_responsive = ttl;
+
 	do {
-		if(join > MAX_PATH_LENGTH-1) {
-			logd(LOG_DEBUG, "path too long\n");
-		}
+		if(join > MAX_PATH_LENGTH-1) logd(LOG_DEBUG, "path too long\n");
 		if((join - join_last_responsive > 4) && first) {
 			/* there may be responsive hops after join if
 			 * remap_local was called from the binsearch
@@ -121,34 +142,40 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, /* {{{ */
 			logd(LOG_DEBUG, "too many STARs\n");
 			break;
 		}
-		logd(LOG_INFO, "%s: looking for join at ttl %d\n", __func__,
-				join);
+
+		logd(LOG_INFO, "%s: looking for join at ttl %d\n", __func__, join);
+		
 		hop = remap_get_hop(rmp, join);
 		if(!pathhop_is_star(hop)) join_last_responsive = join;
 		join++;
-		if(pathhop_contains_ip(hop, path_dst(rmp->path))) {
+
+		/* If the current join contains the destiny IP, is not necessary
+		   to continue searching for another join hop. */
+		if(pathhop_contains_ip(hop, path_dst(rmp->old_path))) {
 			logd(LOG_DEBUG, "hop contains dst\n");
 			break;
 		}
 	} while((pathhop_is_star(hop) ||
-			path_search_hop(rmp->path, hop, 0) < p1branch) &&
+			path_search_hop(rmp->old_path, hop, 0) < oldpath_branch_ttl) &&
 			join < MAX_PATH_LENGTH);
+
 	join--;
+
 	if(!pathhop_is_star(hop)) {
 		/* we have a join point */
-		int p1join = path_search_hop(rmp->path, hop, 0);
-		rmp->shifts[join] = join - p1join;
+		int oldpath_join_ttl = path_search_hop(rmp->old_path, hop, 0);
+		rmp->shifts[join] = join - oldpath_join_ttl;
 	}
 
 	for(int i = branch+1; i < join; i++) rmp->shifts[i] = RMP_SHIFT_CHANGE;
 
-	if(rmp->shifts[branch] != branch - p1branch) {
+	if(rmp->shifts[branch] != branch - oldpath_branch_ttl) {
 		/* set rmp->shifts */
 		remap_binary(rmp, minttl, branch);
 	}
-
+	
 	return join;
-} /* }}} */
+}
 
 static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 {
@@ -156,7 +183,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 	int right_boundary = r;
 	int p1left = 0;
 	int p1right = MAX_PATH_LENGTH;
-
+	
 	while(r > l+1) {
 		int i = (l + r)/2;
 		hop = remap_get_hop(rmp, i);
@@ -164,13 +191,14 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 			i--;
 			hop = remap_get_hop(rmp, i);
 		}
+		
 		if(i == l) {
 			/* STARs made us reach the left limit, fallback */
 			r = remap_local(rmp, (l + r)/2, l, 0);
 			break;
 		}
 
-		int p1ttl = path_search_hop(rmp->path, hop, 0);
+		int p1ttl = path_search_hop(rmp->old_path, hop, 0);
 		logd(LOG_DEBUG, "CHECKME: i %d p1ttl %d shift %d\n",
 				i, p1ttl, rmp->shifts[i]);
 		if((i - p1ttl) == rmp->shifts[i]) {
@@ -192,7 +220,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 
 	hop = probedb_find_hop(rmp->db, r);
 	assert(hop);
-	int shift = r - path_search_hop(rmp->path, hop, 0);
+	int shift = r - path_search_hop(rmp->old_path, hop, 0);
 	for(int i = r; i <= right_boundary; i++) rmp->shifts[i] = shift;
 
 	struct pavl_traverser trav;
@@ -204,7 +232,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 		if(ttl <= r) continue;
 		assert(rmp->shifts[ttl] != RMP_SHIFT_CHANGE);
 		if(pathhop_is_star(hop)) continue;
-		int true_shift = ttl - path_search_hop(rmp->path, hop, 0);
+		int true_shift = ttl - path_search_hop(rmp->old_path, hop, 0);
 		if(true_shift != rmp->shifts[ttl]) {
 			remap_binary(rmp, pttl, ttl);
 		}
@@ -220,13 +248,17 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 {
 	struct remap *rmp = malloc(sizeof(struct remap));
 	if(!rmp) logea(__FILE__, __LINE__, NULL);
-	rmp->path = path_create_copy(opts->path);
-	if(!rmp->path) goto out;
+
+	rmp->old_path = path_create_copy(opts->old_path);
+	rmp->new_path = path_create_copy(opts->new_path);
+	if(!rmp->old_path) goto out;
+
 	rmp->db = probedb_create();
 	if(!rmp->db) goto out_path;
-	rmp->prober = prober_create(opts,
-			remap_cb_hop, remap_cb_iface, rmp);
+
+	rmp->prober = prober_create(opts, remap_cb_hop, remap_cb_iface, rmp);
 	if(!rmp->prober) goto out_db;
+
 	rmp->tq = tqueue_create();
 	if(!rmp->tq) goto out_prober;
 
@@ -245,7 +277,7 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 	probedb_destroy(rmp->db);
 	out_path:
 	loge(LOG_DEBUG, __FILE__, __LINE__);
-	path_destroy(rmp->path);
+	path_destroy(rmp->old_path);
 	out:
 	loge(LOG_DEBUG, __FILE__, __LINE__);
 	free(rmp);
@@ -255,7 +287,7 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 static void remap_destroy(struct remap *rmp) /* {{{ */
 {
 	logd(LOG_DEBUG, "entering %s\n", __func__);
-	path_destroy(rmp->path);
+	path_destroy(rmp->old_path);
 	probedb_destroy(rmp->db);
 	prober_destroy(rmp->prober);
 	tqueue_destroy(rmp->tq);
@@ -268,10 +300,10 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
 	char *hstr, *buf;
 
-	if(!inet_ntop(AF_INET, path_srcptr(rmp->path), src, INET_ADDRSTRLEN)) {
+	if(!inet_ntop(AF_INET, path_srcptr(rmp->old_path), src, INET_ADDRSTRLEN)) {
 		logea(__FILE__, __LINE__, NULL);
 	}
-	if(!inet_ntop(AF_INET, path_dstptr(rmp->path), dst, INET_ADDRSTRLEN)) {
+	if(!inet_ntop(AF_INET, path_dstptr(rmp->old_path), dst, INET_ADDRSTRLEN)) {
 		logea(__FILE__, __LINE__, NULL);
 	}
 
@@ -283,30 +315,34 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	hstr = malloc(PATH_STR_BUF);
 	if(!hstr) logea(__FILE__, __LINE__, NULL);
 	hstr[0] = '\0';
-
+	
+	/* Patch focus */
+	struct pathhop *joinhop = NULL;
+	struct pathhop *tkhop = NULL;
 	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
-	for(int i = 0; i < path_length(rmp->path); i++) {
-		assert(!rmphop || pathhop_ttl(rmphop) >= i);
-		struct pathhop *strhop;
+	int added_hops = 0;
+	int oldshift = 0;
+	int i = 0;
+	
+	while(i + oldshift < path_length(rmp->old_path) || rmphop || joinhop) {
 		if(rmphop && pathhop_ttl(rmphop) == i) {
-			strhop = rmphop;
+			tkhop = rmphop;
+			if(!pathhop_is_star(rmphop)) joinhop = rmphop;
+			if(joinhop) added_hops += (path_search_hop(rmp->old_path,joinhop,0) == -1);
 			rmphop = pavl_t_next(&trav);
-		} else {
-			strhop = pathhop_get_hop(rmp->path, i);
+		}
+		else {
+			if(joinhop) {
+				int j = path_search_hop(rmp->old_path, joinhop, 0) + 1;
+				oldshift = j - i; 
+				joinhop = NULL;
+				continue;
+			}
+			tkhop = pathhop_get_hop(rmp->old_path, i + oldshift);
 		}
 
-		char *s = pathhop_tostr(strhop);
-		strncat(hstr, s, bufsz);
-		bufsz -= strlen(s);
-		bufsz = (bufsz < 0) ? 0 : bufsz;
-		strncat(hstr, "|", bufsz);
-		bufsz--;
-		bufsz = (bufsz < 0) ? 0 : bufsz;
-		free(s);
-	}
+		char *s = pathhop_tostr(tkhop);
 
-	for(; rmphop; rmphop = pavl_t_next(&trav)) {
-		char *s = pathhop_tostr(rmphop);
 		strncat(hstr, s, bufsz);
 		bufsz -= strlen(s);
 		bufsz = (bufsz < 0) ? 0 : bufsz;
@@ -314,6 +350,8 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 		bufsz--;
 		bufsz = (bufsz < 0) ? 0 : bufsz;
 		free(s);
+
+		i++;
 	}
 
 	assert(*(strchr(hstr, '\0') - 1) == '|');
@@ -321,8 +359,9 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 
 	buf = malloc(PATH_STR_BUF);
 	if(!buf) logea(__FILE__, __LINE__, NULL);
-	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s", rmp->total_probes_sent,
-			src, dst, time, hstr);
+	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d", rmp->total_probes_sent,
+			 src, dst, time, hstr, 
+			 added_hops, path_length(rmp->new_path));
 	printf("%s\n", buf);
 	free(hstr);
 	free(buf);
@@ -332,9 +371,27 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 {
 	struct pathhop *hop = probedb_find_hop(rmp->db, ttl);
 	if(!hop) {
-		/* +1 because inside paths we count from zero */
-		prober_remap_hop(rmp->prober, ttl+1);
-		struct pathhop * newhop = tqrecv(rmp->tq);
+		struct pathhop *newhop = NULL;
+		
+		if(rmp->new_path) {
+			if(ttl < path_length(rmp->new_path)) {
+				newhop = pathhop_get_hop(rmp->new_path, ttl);
+				int nifaces = pathhop_nifaces(newhop);
+				rmp->total_probes_sent += prober_iface2probes(nifaces);
+			}
+			else {
+				struct timespec tstamp;
+				clock_gettime(CLOCK_REALTIME, &tstamp);
+				newhop = pathhop_create_str(
+					"255.255.255.255:0:0.00,0.00,0.00,0.00:", 
+					tstamp, ttl);
+			}
+		} else {
+			// +1 because inside paths we count from zero 
+			prober_remap_hop(rmp->prober, rmp->new_path, ttl+1);
+			newhop = tqrecv(rmp->tq);
+		}
+		
 		*pathhop_ttlptr(newhop) = ttl;
 		hop = probedb_add_hop(rmp->db, newhop);
 		pathhop_destroy(newhop);
@@ -349,6 +406,7 @@ static void remap_cb_hop(uint8_t ttl, int nprobes, struct pathhop *hop,/*{{{*/
 	rmp->total_probes_sent += nprobes;
 	logd(LOG_INFO, "%s reply for hop at TTL %d\n", __func__, (int)ttl);
 	tqsend(rmp->tq, hop);
+	log_line(__func__,__LINE__,tq_getid(rmp->tq));
 } /* }}} */
 
 static void remap_cb_iface(uint8_t ttl, uint8_t flowid,  /* {{{ */

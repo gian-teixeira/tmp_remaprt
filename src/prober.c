@@ -15,10 +15,10 @@
 #include "confirm.h"
 #include "timespec.h"
 #include "prober.h"
+#include "path.h"
 
 int PARIS_IFACE2PROBES[] = {6, 6, 11, 16, 21, 27, 33, 38, 44, 51, 57, 63, 70, 76, 83, 90, 96};
 int PARIS_MAXIFACES = 15;
-
 
 /*****************************************************************************
  * static declarations
@@ -35,6 +35,7 @@ struct prober {
 };
 
 struct hopremap {
+	struct path *new_path;
 	uint8_t ttl;
 	int probes_sent;
 	int pending_probes;
@@ -52,7 +53,7 @@ static void prober_hop_process(struct confirm_query *q);
 static struct iface * prober_parse(struct confirm_query *q);
 static void * prober_thread(void *p);
 
-static struct hopremap * hopremap_create(struct prober *prober, uint8_t ttl);
+static struct hopremap * hopremap_create(struct prober *prober, struct path *new_path, uint8_t ttl);
 static void hopremap_destroy(struct hopremap *hr);
 static void hopremap_free_id2iface(void *key, void *value, void *dummy);
 static int hopremap_needed_probes(struct hopremap *hr);
@@ -66,6 +67,7 @@ static struct pathhop * hopremap_build_hop(const struct hopremap *hr);
 struct prober * prober_create(const struct opts *opts, /* {{{ */
 		prober_cb_hop hop_cb, prober_cb_iface iface_cb, void *cb_data)
 {
+	log_line(__func__,__LINE__,"");
 	struct prober *prober = malloc(sizeof(struct prober));
 	if(!prober) logea(__FILE__, __LINE__, NULL);
 	prober->dst = opts->dst;
@@ -97,6 +99,7 @@ struct prober * prober_create(const struct opts *opts, /* {{{ */
 
 void prober_destroy(struct prober *p)  /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	int i;
 	void *r;
 	logd(LOG_DEBUG, "entering %s\n", __func__);
@@ -117,6 +120,7 @@ void prober_destroy(struct prober *p)  /* {{{ */
 
 void prober_remap_iface(struct prober *p, uint8_t ttl, uint8_t flowid) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	logd(LOG_INFO, "%s creating query for iface %d,%d\n", __func__,
 			(int)ttl, (int)flowid);
 	struct confirm_query *q = confirm_query_create(p->dst, ttl, flowid);
@@ -127,10 +131,11 @@ void prober_remap_iface(struct prober *p, uint8_t ttl, uint8_t flowid) /* {{{ */
 	confirm_query(p->confirm, q);
 } /* }}} */
 
-void prober_remap_hop(struct prober *p, uint8_t ttl) /* {{{ */
+void prober_remap_hop(struct prober *p, struct path *new_path, uint8_t ttl) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	logd(LOG_INFO, "%s creating query for ttl %d\n", __func__, (int)ttl);
-	struct hopremap *hr =  hopremap_create(p, ttl);
+	struct hopremap *hr =  hopremap_create(p, new_path, ttl);
 	int needed = hopremap_needed_probes(hr);
 	assert(needed == PARIS_IFACE2PROBES[0]);
 	hopremap_send_probes(hr, needed);
@@ -141,6 +146,7 @@ void prober_remap_hop(struct prober *p, uint8_t ttl) /* {{{ */
  ****************************************************************************/
 static void prober_iface_reply(struct confirm_query *q) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	logd(LOG_INFO, "%s ttl %d flowid %d\n", __func__, (int)q->ttl,
 			(int)q->flowid);
 	q->cb = prober_iface_process;
@@ -150,6 +156,7 @@ static void prober_iface_reply(struct confirm_query *q) /* {{{ */
 
 static void prober_hop_reply(struct confirm_query *q) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	logd(LOG_INFO, "%s ttl %d flowid %d\n", __func__, (int)q->ttl,
 			(int)q->flowid);
 	q->cb = prober_hop_process;
@@ -159,6 +166,7 @@ static void prober_hop_reply(struct confirm_query *q) /* {{{ */
 
 static void prober_iface_process(struct confirm_query *q) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	struct iface *iff = prober_parse(q);
 	struct prober *p = (struct prober *)q->data;
 	p->iface_cb(q->ttl, q->flowid, iff, p->cb_data);
@@ -169,6 +177,7 @@ static void prober_iface_process(struct confirm_query *q) /* {{{ */
 
 static void prober_hop_process(struct confirm_query *q) /* {{{ */
 {
+	log_line(__func__,__LINE__,".... hop process started");
 	struct hopremap *hr = q->data;
 	struct prober *prober = hr->prober;
 	struct iface *iff = prober_parse(q);
@@ -183,6 +192,7 @@ static void prober_hop_process(struct confirm_query *q) /* {{{ */
 	} else if(needed > 0) {
 		hopremap_send_probes(hr, needed);
 	}
+	log_line(__func__,__LINE__,".... hop process finished");
 } /* }}} */
 
 static struct iface * prober_parse(struct confirm_query *q) /* {{{ */
@@ -196,7 +206,7 @@ static struct iface * prober_parse(struct confirm_query *q) /* {{{ */
 	inet_ntop(AF_INET, &(q->ip), haddr, INET_ADDRSTRLEN);
 	logd(LOG_EXTRA, "query dst %s ttl %d flowid %d -> %s\n", daddr,
 			q->ttl, q->flowid, haddr);
-
+	
 	if(clock_gettime(CLOCK_REALTIME, &tstamp)) goto out_error;
 
 	timespec_sub(tstamp, q->start, &rttts);
@@ -206,6 +216,7 @@ static struct iface * prober_parse(struct confirm_query *q) /* {{{ */
 			rtt, rtt, rtt, rtt);
 	struct iface *iff = iface_create_str(ifstr, tstamp, q->ttl);
 
+	
 	return iff;
 
 	out_error:
@@ -218,16 +229,18 @@ static void * prober_thread(void *vprober) /* {{{ */
 	logd(LOG_INFO, "%s started\n", __func__);
 	struct prober *p = vprober;
 	while(1) {
+		log_line(__func__,__LINE__,"--------------------------------- thread started");
 		void *ptr = tqrecv(p->tq);
 		struct confirm_query *q = ptr;
 		q->cb(q);
+		log_line(__func__,__LINE__,"--------------------------------- thread finished");
 	}
 } /* }}} */
 
 /*****************************************************************************
  * pathhop_remap functions
  ****************************************************************************/
-static struct hopremap * hopremap_create(struct prober *p, uint8_t ttl) /*{{{*/
+static struct hopremap * hopremap_create(struct prober *p, struct path *new_path, uint8_t ttl) /*{{{*/
 {
 	struct hopremap *hr = malloc(sizeof(struct hopremap));
 	if(!hr) logea(__FILE__, __LINE__, NULL);
@@ -236,6 +249,7 @@ static struct hopremap * hopremap_create(struct prober *p, uint8_t ttl) /*{{{*/
 	hr->id2iface = map_create(map_cmp_uint32, NULL, NULL);
 	if(!hr->id2iface) goto out_ips;
 	hr->prober = p;
+	hr->new_path = new_path;
 	hr->ttl = ttl;
 	hr->probes_sent = 0;
 	hr->pending_probes = 0;
@@ -252,6 +266,7 @@ static struct hopremap * hopremap_create(struct prober *p, uint8_t ttl) /*{{{*/
 
 static void hopremap_destroy(struct hopremap *hr) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	map_destroy(hr->id2iface, hopremap_free_id2iface);
 	pavl_destroy(hr->ips, pavl_item_free);
 	free(hr);
@@ -259,12 +274,14 @@ static void hopremap_destroy(struct hopremap *hr) /* {{{ */
 
 static void hopremap_free_id2iface(void *key, void *value, void *dummy) /*{{{*/
 {
+	log_line(__func__,__LINE__,"");
 	free(key);
 	iface_destroy((struct iface *)value);
 } /* }}} */
 
 static int hopremap_needed_probes(struct hopremap *hr) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	int ips = pavl_count(hr->ips);
 	if(ips >= PARIS_MAXIFACES) return 0;
 	int needed = PARIS_IFACE2PROBES[ips] - hr->probes_sent;
@@ -274,6 +291,7 @@ static int hopremap_needed_probes(struct hopremap *hr) /* {{{ */
 
 static void hopremap_send_probes(struct hopremap *hr, int count) /* {{{ */
 {
+	log_line(__func__,__LINE__,"------------------------------ sending probes");
 	logd(LOG_INFO, "%s probes %d ttl %d\n", __func__, count, hr->ttl);
 	struct prober *p = hr->prober;
 	assert(hr->probes_sent + count < UINT8_MAX);
@@ -293,6 +311,7 @@ static void hopremap_send_probes(struct hopremap *hr, int count) /* {{{ */
 
 static void hopremap_hop_add(struct hopremap *hr, struct iface *iff) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	hr->pending_probes--;
 	if(iface_is_star(iff)) {
 		iface_destroy(iff);
@@ -315,10 +334,11 @@ static void hopremap_hop_add(struct hopremap *hr, struct iface *iff) /* {{{ */
 
 static struct pathhop * hopremap_build_hop(const struct hopremap *hr) /* {{{ */
 {
+	log_line(__func__,__LINE__,"");
 	char str[4096]; str[0] = '\0';
 	struct timespec tstamp;
 	clock_gettime(CLOCK_REALTIME, &tstamp);
-
+	
 	if(pavl_count(hr->ips) == 0) {
 		char *str = "255.255.255.255:0:0.0,0.0,0.0,0.0:";
 		struct pathhop * hop = pathhop_create_str(str, tstamp, hr->ttl);
@@ -326,6 +346,8 @@ static struct pathhop * hopremap_build_hop(const struct hopremap *hr) /* {{{ */
 		return hop;
 	}
 
+	// Verificar a existência do caminho
+	
 	struct pavl_traverser trav;
 	uint32_t *ip;
 	for(ip = pavl_t_first(&trav, hr->ips); ip; ip = pavl_t_next(&trav)) {
@@ -367,3 +389,9 @@ static struct pathhop * hopremap_build_hop(const struct hopremap *hr) /* {{{ */
 	struct pathhop *hop = pathhop_create_str(str, tstamp, hr->ttl);
 	return hop;
 } /* }}} */
+
+int prober_iface2probes(int ips) 
+{
+	if(ips >= PARIS_MAXIFACES) return 0;
+	return PARIS_IFACE2PROBES[ips];
+}

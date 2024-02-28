@@ -12,4 +12,7 @@ void tqsend(struct tqueue *tq, void *ptr);
 /* tqrecv blocks until there is something in the queue */
 void * tqrecv(struct tqueue *tq);
 
+void tq_setid(struct tqueue *tq, char *str);
+char* tq_getid(struct tqueue *tq);
+
 #endif

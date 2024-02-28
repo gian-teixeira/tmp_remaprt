@@ -92,3 +92,22 @@ static void log_error(const char *file, int line)
 	if(errno) perror("log_error");
 	fprintf(stderr, "%s:%d: logging not working.\n", file, line);
 }
+
+#include <time.h>
+
+void log_line(const char *func, int line, char *text){
+    char *timestr = ident_str();
+    logd(LOG_INFO, "%s:%d: %s (%s)\n", func, line, text, timestr);
+    free(timestr);
+}
+
+static char * ident_str(void)
+{
+    struct tm gmtm;
+    time_t timett = time(NULL);
+    gmtime_r(&timett, &gmtm);
+    char *ident = malloc(256);
+    if(!ident) logea(__FILE__, __LINE__, NULL);
+    strftime(ident, 256, "%Y%m%d%H%M%S", &gmtm);
+    return ident;
+}

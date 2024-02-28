@@ -52,4 +52,8 @@ void logea(const char *file, int lineno, const char *msg)
  * that passed to =log_init=. */
 int log_true(unsigned verbosity);
 
+
+void log_line(const char *func, int line, char *text);
+static char * ident_str(void);
+
 #endif

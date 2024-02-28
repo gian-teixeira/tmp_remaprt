@@ -1,10 +1,13 @@
-AC_INIT([remaproute], [0.1], [cunha@dcc.ufmg.br])
+AC_INIT([remaproute],[0.1],[cunha@dcc.ufmg.br])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 
-AC_GNU_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
 
 AC_PROG_CC
-AC_PROG_CC_STDC
+m4_warn([obsolete],
+[AC_PROG_CC_STDC is obsolete; use AC_PROG_CC
+])dnl
+AC_REQUIRE(AC_PROG_CC)
 AC_PROG_INSTALL
 AC_PROG_LN_S
 

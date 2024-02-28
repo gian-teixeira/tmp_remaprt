@@ -19,8 +19,10 @@ struct probedb * probedb_create(void) /* {{{ */
 {
 	struct probedb *db = malloc(sizeof(struct probedb));
 	if(!db) goto out;
+
 	db->ifaces = pavl_create(probedb_cmp_iface, NULL, NULL);
 	if(!db->ifaces) goto out_db;
+
 	db->hops = pavl_create(probedb_cmp_hop, NULL, NULL);
 	if(!db->hops) goto out_ifaces;
 	return db;

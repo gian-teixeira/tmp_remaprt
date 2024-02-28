@@ -5,7 +5,10 @@
 #include "path.h"
 
 struct opts {
-	struct path *path;
+	// New members that supports offline remaps (focused on testing)
+	struct path *old_path;
+	struct path *new_path;
+
 	char *iface;
 	char *logbase;
 	uint32_t dst;

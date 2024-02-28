@@ -24,6 +24,7 @@ int check_permissions(void) { /* {{{ */
 int main(int argc, char** argv) /* {{{ */
 {
 	if(!check_permissions()) goto out_usage;
+	dup2(STDERR_FILENO, STDIN_FILENO);
 
 	// struct rlimit rl = { 67108864L, 67108864L };
 	// if(setrlimit(RLIMIT_AS, &rl)) loge(1, __FILE__, __LINE__);
@@ -33,14 +34,13 @@ int main(int argc, char** argv) /* {{{ */
 
 	log_init(LOG_EXTRA, opts->logbase, 1, 65535*128);
 
-	char *pstr = path_tostr(opts->path);
+	char *pstr = path_tostr(opts->old_path);
 	logd(LOG_INFO, "path %s\n", pstr);
 	free(pstr);
 
 	if(demux_init(opts->iface)) goto out_opts;
-	
 	remap(opts);
-
+	
 	demux_destroy();
 	opts_destroy(opts);
 	log_destroy();

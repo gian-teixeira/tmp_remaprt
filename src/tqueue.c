@@ -8,6 +8,7 @@ struct tqueue {
 	struct dlist *queue;
 	pthread_mutex_t mutex;
 	pthread_cond_t cond;
+	char *id;
 };
 static void tqueue_mutex_unlock(void *vmutex);
 
@@ -19,6 +20,7 @@ struct tqueue * tqueue_create(void) /* {{{ */
 	if(!tq->queue) logea(__FILE__, __LINE__, NULL);
 	pthread_mutex_init(&tq->mutex, NULL);
 	if(pthread_cond_init(&tq->cond, NULL)) logea(__FILE__, __LINE__, NULL);
+	tq->id = NULL;
 	return tq;
 } /* }}} */
 
@@ -28,6 +30,7 @@ void tqueue_destroy(struct tqueue *tq) /* {{{ */
 	if(pthread_mutex_destroy(&tq->mutex)) loge(LOG_DEBUG, __FILE__, __LINE__);
 	if(pthread_cond_destroy(&tq->cond)) loge(LOG_DEBUG, __FILE__, __LINE__);
 	dlist_destroy(tq->queue, NULL);
+	if(tq->id) free(tq->id);
 	free(tq);
 } /* }}} */
 
@@ -62,3 +65,6 @@ static void tqueue_mutex_unlock(void *vmutex) /* {{{ */
 {
 	pthread_mutex_unlock(vmutex);
 } /* }}} */
+
+void tq_setid(struct tqueue *tq, char *str) { tq->id = str; }
+char* tq_getid(struct tqueue *tq) { return tq->id; }
