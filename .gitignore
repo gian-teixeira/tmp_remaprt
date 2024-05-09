@@ -1,0 +1,8 @@
+*
+!/.gitignore
+!/README.md
+!/LICENSE
+!/configure.ac
+!/Makefile.am
+!/src/
+!/src/*

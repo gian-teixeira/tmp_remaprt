@@ -1,7 +1,0 @@
-savings/savings.py works with new pathstr reads paths from dst2changes pickle
-
-mkchanges/mkchanges.py works with binary unified (path + baldb) data (converts
-from mkchanges/dlib.py to mkchanges/path.py)
-
-data/parser works with binary split (path separate from baldb) data (and
-converts to intermediate text format)
