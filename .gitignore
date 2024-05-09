@@ -5,4 +5,5 @@
 !/configure.ac
 !/Makefile.am
 !/src/
-!/src/*
+!/src/*.c
+!/src/*.h
