@@ -13,5 +13,6 @@
     },
     "terminal.integrated.env.linux": {
         "PYTHONPATH" : "/home/elverton/remap_project/workingdir/lib" 
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

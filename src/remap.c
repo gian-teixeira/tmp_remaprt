@@ -22,6 +22,8 @@
 #define RMP_SHIFT_CHANGE INT_MAX
 #define PATH_STR_BUF 65535
 
+static int measured_ttl[50] = {0};
+
 /*****************************************************************************
  * declarations
  ****************************************************************************/
@@ -59,7 +61,10 @@ static void remap_cb_iface(uint8_t ttl, uint8_t flowid, struct iface *i,
 void remap(const struct opts *opts) /* {{{ */
 {
 	struct remap *rmp = remap_create(opts);
-	if(!rmp) goto out;
+	if(!rmp){ 
+		logd(LOG_INFO, "%s: cannot create struct remap\n", __func__);
+		goto out;
+	}
 	if(rmp->startttl > path_length(rmp->old_path)) goto out_length;
 
 	/* Remap origin */
@@ -73,7 +78,10 @@ void remap(const struct opts *opts) /* {{{ */
 		rmp->startttl--;
 		hop = remap_get_hop(rmp, rmp->startttl);
 	}
-	if(pathhop_is_star(hop)) goto out;
+	if(pathhop_is_star(hop)){
+		logd(LOG_INFO, "%s: cannot access hop\n", __func__);
+	       	goto out;
+	}
 
 	/* Position if the origin in the old path. If it is equal to the position
 	   in the new path, no remap is necessary. If the hop was not present, then
@@ -320,26 +328,31 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	struct pathhop *joinhop = NULL;
 	struct pathhop *tkhop = NULL;
 	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
+	
+	int consecutive_stars = 0;
 	int added_hops = 0;
 	int oldshift = 0;
 	int i = 0;
 	
-	while(i + oldshift < path_length(rmp->old_path) || rmphop || joinhop) {
+	while(i + oldshift < path_length(rmp->old_path) || rmphop || joinhop
+		  && consecutive_stars < 4) {
+
 		if(rmphop && pathhop_ttl(rmphop) == i) {
 			tkhop = rmphop;
-			if(!pathhop_is_star(rmphop)) joinhop = rmphop;
-			if(joinhop) added_hops += (path_search_hop(rmp->old_path,joinhop,0) == -1);
+			joinhop = rmphop;
 			rmphop = pavl_t_next(&trav);
 		}
 		else {
-			if(joinhop) {
+			if(joinhop && !pathhop_is_star(joinhop)) {
 				int j = path_search_hop(rmp->old_path, joinhop, 0) + 1;
-				oldshift = j - i; 
+				oldshift = j - i;
 				joinhop = NULL;
-				continue;
 			}
 			tkhop = pathhop_get_hop(rmp->old_path, i + oldshift);
 		}
+
+		if(pathhop_is_star(tkhop)) ++consecutive_stars;	
+		else consecutive_stars = 0;
 
 		char *s = pathhop_tostr(tkhop);
 
@@ -357,11 +370,16 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	assert(*(strchr(hstr, '\0') - 1) == '|');
 	*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
 
+	int measured = 0;
+	for(int i = 0; i < 50; i++) measured += measured_ttl[i];
+
 	buf = malloc(PATH_STR_BUF);
 	if(!buf) logea(__FILE__, __LINE__, NULL);
-	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d", rmp->total_probes_sent,
+	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %d", 
+			 rmp->total_probes_sent,
 			 src, dst, time, hstr, 
-			 added_hops, path_length(rmp->new_path));
+			 added_hops, path_length(rmp->new_path),
+			 measured);
 	printf("%s\n", buf);
 	free(hstr);
 	free(buf);
@@ -369,6 +387,8 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 
 struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 {
+	measured_ttl[ttl] = 1;
+
 	struct pathhop *hop = probedb_find_hop(rmp->db, ttl);
 	if(!hop) {
 		struct pathhop *newhop = NULL;

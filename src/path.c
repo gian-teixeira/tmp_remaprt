@@ -182,7 +182,7 @@ struct path *path_create_str_hops(const char *buf, uint32_t dst) /* {{{ */
 	p->tstamp.tv_sec = 0;
 	p->tstamp.tv_nsec = 0;
 	p->hops = NULL;
-	p->length = 0;
+	p->length = 0;\
 	p->flags = 0;
 	p->alias = -1;
 	p->ifaces = pavl_create(iface_cmp_ip_data, NULL, NULL);
@@ -198,6 +198,7 @@ struct path *path_create_str_hops(const char *buf, uint32_t dst) /* {{{ */
 		for (curr = strsep(&ptr, "|"); curr; curr = strsep(&ptr, "|"))
 		{
 			hops[p->length] = pathhop_create_str(curr, p->tstamp, p->length);
+			//printf("%d -- %s\n", p->length, curr);
 			if (!hops[p->length])
 				continue;
 			path_add_ifaces(p, hops[p->length]);
@@ -488,7 +489,7 @@ static int path_diff_fix_stars_1hop(struct path *p1, /* {{{ */
 	struct pathhop *h1, *h2, *srch, *newh;
 	struct path *starp;
 	int stari, starj;
-
+	
 	h1 = p1->hops[i1];
 	h2 = p2->hops[i2];
 	if (pathhop_is_star(h1) && pathhop_is_star(h2))
