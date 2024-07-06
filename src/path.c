@@ -589,6 +589,7 @@ static void path_set_hop(struct path *p, int ttl, struct pathhop *h) /* {{{ */
 	/* no path_del_ifaces because current hop is either NULL or a STAr */
 	if (p->hops[ttl])
 		pathhop_destroy(p->hops[ttl]);
+	h->ttl = ttl;
 	p->hops[ttl] = h;
 } /* }}} */
 

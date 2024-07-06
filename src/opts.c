@@ -25,11 +25,11 @@ void opts_usage(int argc, char **argv) /* {{{ */
 	printf("\t-x ICMPID\tThe ICMP ID used to identify probes.\n");
 	printf("\t-l LOGBASE\tBase name for the log file.\n");
 
-	printf("\t-o STR\t\tHOPSTR_old containing the old path (see below).\n");
-	printf("\t-n STR\t\tHOPSTR_old containing the new path (see below). If specified, \n\t\t\tthis option will lead to an offline test remap.\n");
+	printf("\t-o STR\t\tHOPSTR containing the old path (see below).\n");
+	printf("\t-n STR\t\tHOPSTR containing the new path (see below). If specified, \n\t\t\tthis option will lead to an offline test remap.\n");
 
 	printf("\n");
-	printf("HOPSTR_old := HOP|HOP|...|HOP\n");
+	printf("HOPSTR := HOP|HOP|...|HOP\n");
 	printf("HOP := IFACE;IFACE;...;IFACE\n");
 	printf("IFACE := ip:flowid:rttmin:rttavg:rttmax:rttvar:flags\n");
 } /* }}} */
