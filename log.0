@@ -1,0 +1,25 @@
+path 255.255.255.255 2.224.17.113 0 150.164.10.1:0:0.00,0.00,0.00,0.00:|150.164.1.129:1,2,3,4,5,6:0.40,0.53,0.80,0.02:|150.164.164.1:1,2,3,4,5,6:0.40,0.52,0.60,0.01:|150.164.164.254:1,2,3,4,5,6:0.40,0.55,0.70,0.01:|200.19.158.2:1,2,3,4,5,6:0.30,0.35,0.40,0.00:|200.131.0.134:1,2,3,4,5,6:0.30,0.62,2.20,0.50:|200.143.253.161:1,2,3,4,5,6:0.30,0.35,0.40,0.00:|200.143.252.244:1,2,3,4,5,6:0.70,0.85,1.00,0.02:|170.79.213.153:1,2,3,4,5,6:8.40,8.50,8.60,0.01:|170.79.213.2:1,2,3,4,5,6:49.10,49.73,52.40,1.43:|170.79.213.138:1,2,3,4,5,6:48.90,49.12,50.00,0.16:|170.79.213.19:1,2,3,4,5,6:114.40,114.72,116.00,0.33:|200.143.252.26:1,2,3,4,5,6:113.70,113.85,114.00,0.01:|198.32.243.77:1,2,3,4,5,6:174.90,175.02,175.10,0.01:|138.187.129.178:1,2,3,4,5,6:174.90,174.97,175.10,0.01:|138.187.129.52:1,2,3,4,5,6:251.00,251.20,251.40,0.02:|138.187.130.222:1,2,3,4,5,6:251.00,251.50,253.10,0.52:|138.187.129.19:1,2,3,4,5,6:251.70,252.07,252.50,0.08:|138.187.129.2:1,2,3,4,5,6:252.50,252.63,252.70,0.01:|138.187.129.163:1:254.40,254.40,254.40,0.00:
+sniffer_openpcap dev=eno8303 ok
+sniffer_create dev=eno8303 ok
+prober_create:70:  (20230915181808)
+sender_create dev=eno8303 ok
+confirm_create dev=eno8303 ok
+confirm_thread started
+prober_create: prober started
+remap: starting with local remap
+remap_local: looking for branch at ttl 7
+remap_local: looking for branch at ttl 6
+prober_thread started
+remap_local: looking for join at ttl 8
+remap_local: looking for join at ttl 9
+remap_local: looking for join at ttl 10
+remap_local: looking for join at ttl 11
+remap_local: looking for join at ttl 12
+prober_thread:232: --------------------------------- thread started (20230915181808)
+confirm_thread:197: -- confirm thread work start (20230915181808)
+entering remap_destroy
+prober_destroy:102:  (20230915181808)
+entering prober_destroy
+entering confirm_destroy
+sender_destroy ok
+sniffer_destroy dev=eno8303 ok

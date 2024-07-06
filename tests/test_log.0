@@ -1,0 +1,22 @@
+path 255.255.255.255 5.5.5.5 0 0.0.0.0:0:0.00,0.00,0.00,0.00:|1.1.1.1:0:0.00,0.00,0.00,0.00:|2.2.2.2:0:0.00,0.00,0.00,0.00:|3.3.3.3:0:0.00,0.00,0.00,0.00:|4.4.4.4:0:0.00,0.00,0.00,0.00:|5.5.5.5:0:0.00,0.00,0.00,0.00:
+sniffer_openpcap dev=eno8303 ok
+sniffer_create dev=eno8303 ok
+prober_create:70:  (20240705195432)
+sender_create dev=eno8303 ok
+confirm_create dev=eno8303 ok
+confirm_thread started
+prober_create: prober started
+prober_thread started
+confirm_thread:197: -- confirm thread work start (20240705195432)
+remap: starting with local remap
+remap_local: looking for branch at ttl 1
+remap_local: looking for branch at ttl 0
+prober_thread:232: --------------------------------- thread started (20240705195432)
+remap_local: looking for join at ttl 2
+remap_local: looking for join at ttl 3
+entering remap_destroy
+prober_destroy:102:  (20240705195432)
+entering prober_destroy
+entering confirm_destroy
+sender_destroy ok
+sniffer_destroy dev=eno8303 ok

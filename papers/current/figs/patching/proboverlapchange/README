@@ -1,0 +1,7 @@
+cp /mnt/data2/elverton/TopoMap/experiments/Graphs/results_prob_change_overlap/overlap_result/result_overlap.txt .
+awk '{print $4}' result_overlap.txt | sort | uniq -c | sort -nrk1,1 > overlap.txt
+awk '{s += $1}END{print s}' overlap.txt
+awk '{print $2,$1/2137963}' overlap.txt > overlap.perc
+sort -nk 1,1 overlap.perc > aux
+mv aux overlap.perc
+awk '{s+=$2; print $1,s}' overlap.perc > overlap.cdf

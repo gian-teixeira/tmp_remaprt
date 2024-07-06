@@ -1,0 +1,8 @@
+R = awk '{s+=$2}END{print s}' zones_changes.txt
+awk '{s+=$2/9290204; print $1,$2/9290204,s}' zones_changes.txt > zones_changes.perc
+R = awk '{s+=$2}END{print s}' zones_overlap.txt
+awk '{s+=$2/R; print $1,$2/50211578,s}' zones_overlap.txt > zones_overlap.perc
+awk '{print $1/999,$0}' changes.perc > aux
+mv aux changes.perc
+awk '{print $1/999,$0}' overlaps.perc > aux
+mv aux overlaps.perc

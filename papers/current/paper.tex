@@ -1,0 +1,129 @@
+%\documentclass[10pt, conference, letterpaper]{IEEEtran}
+\documentclass[10pt, letter]{sig-alternate-10pt}
+\usepackage[margin=1mm]{caption}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{url}
+\usepackage[american]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{times}
+\usepackage{cite}
+\usepackage{color}
+% \usepackage[T1]{fontenc}
+
+%\makeatletter
+%\newif\if@restonecol
+%\makeatother
+%\let\algorithm\relax
+%\let\endalgorithm\relax
+% \usepackage[lined,ruled,linesnumbered]{algorithm2e}
+%\usepackage[ruled,linesnumbered]{algorithm2e}
+
+\newcommand{\ed}[1]{\textbf{[[#1]]}}
+\newcommand{\dtrack}{\textsc{dtrack}}
+\newcommand{\rmprt}{{Re\-map\-Rou\-te}}
+\newcommand{\figstr}{Fig.}
+\newcommand{\figstrs}{Figs.}
+\newcommand{\secstr}{Sec.}
+\newcommand{\secstrs}{Secs.}
+\newcommand{\tabstr}{Tab.}
+\newcommand{\tabstrs}{Tabs.}
+\newcommand{\paragraphnd}[1]{\vspace{2mm}\noindent\textbf{#1}}
+\renewcommand{\paragraph}[1]{\vspace{2mm}\noindent\textbf{#1.}}
+
+\newcommand{\blue}[1]{{\color{blue}#1}}
+
+\hyphenation{re-map-rou-te}
+\hyphenation{Re-map-Rou-te}
+
+\sloppy
+
+\title{Coordinated Remapping of Internet Routing Events\vspace{-5mm}}
+
+\newfont{\cunhaemail}{phvr8t at 8.5pt}
+
+% \numberofauthors{1}
+
+\author{
+\noindent{}
+\begin{tabular}{cccc}
+\multicolumn{4}{c}{\vspace{1mm}\Large{Elverton Fazzion$^1$, \'{I}talo Cunha$^1$, Dorgival Guedes$^1$, Wagner Meira Jr.$^1$}} \\
+\multicolumn{4}{c}{\vspace{1mm}\Large{Renata Teixeira$^2$, Darryl Veitch$^3$, Christophe Diot$^4$}} \\
+\affaddr{$^1$Universidade Federal} &
+\affaddr{\qquad$^2$Inria\qquad} &
+\affaddr{$^3$Dept. Elec. and Elec. Eng.} &
+\affaddr{$^4$Safran}\\
+\affaddr{de Minas Gerais} &
+&
+\affaddr{University of Melbourne} &
+\end{tabular}
+}
+% \\
+% \cunhaemail{cunha@dcc.ufmg.br} &
+% \cunhaemail{renata.teixeira@inria.fr} &
+% \cunhaemail{dveitch@unimelb.edu.au} &
+% \cunhaemail{christophe.diot@safran.com}
+
+% \author{Paper \#000\vspace{2cm}}
+
+%Italo Cunha\\
+%        \affaddr{Universidade Federal de Minas Gerais}\\
+%        \cunhaemail{cunha@dcc.ufmg.br}\\
+%\alignauthor
+%Renata Teixeira\\
+%\alignauthor
+%Darryl Veitch\\
+%\alignauthor
+%Christophe Diot\\
+%        \affaddr{Technicolor}\\
+%}
+
+\begin{document}
+
+\maketitle
+
+\selectlanguage{american}
+
+\begin{abstract}
+%
+A number of systems rely on traceroute to track a large number
+of Internet paths as they change over time.  Our previous work designed
+\dtrack{}, a system that optimizes probing to track Internet path
+changes.  \dtrack{} only remaps a path, i.e., probes every hop from the
+source to the destination of the path, after it detects that the path
+has changed.  This paper shows that such complete remapping is
+inefficient, because most path changes are localized in a few hops of a
+path.  We develop a new version of DTrack with local remapping, which
+just probes the (often few) hops that have changed.  Our evaluation with
+trace-driven simulations and in a PlanetLab deployment shows that local
+remapping reduces by 73\% the number of probes issued during remapping
+when compared with complete remapping.  Yet, local remapping has little
+impact on the accuracy of inferred paths.
+%
+\end{abstract}
+
+%\input{intro}
+
+%\input{background}
+
+%\input{char}
+
+\input{remap}
+
+%\input{sim}
+
+%\input{eval}
+
+%\input{patching}
+
+%\input{related}
+
+%\input{conc}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
