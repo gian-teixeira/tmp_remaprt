@@ -1,3 +1,0 @@
-cp /mnt/data2/elverton/TopoMap/experiments/Graphs/results_time/dots_num_overlap_routes_detection.txt routes.overlapping.txt
-awk '{print $1/999,$2}' dots_num_overlap_routes_detection.txt > dots_num_overlap_routes_detection.cdf
-
