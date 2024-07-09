@@ -96,17 +96,22 @@ void remap(const struct opts *opts) /* {{{ */
 		
 		struct timespec ts;
 		char *buf = malloc(PATH_STR_BUF);
+		char *src = pathhop_tostr(pathhop_get_hop(rmp->old_path, 0));
+		char *dst = pathhop_tostr(pathhop_get_hop(rmp->old_path, path_length(rmp->old_path)-1));
+		char *hopstr = path_tostr(rmp->old_path);
 
 		clock_gettime(CLOCK_REALTIME, &ts);
 		if(!buf) logea(__FILE__, __LINE__, NULL);
 		snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %d", 
 			 	 rmp->total_probes_sent,
-			 	 pathhop_tostr(pathhop_get_hop(rmp->old_path, 0)),
-			 	 pathhop_tostr(pathhop_get_hop(rmp->old_path, path_length(rmp->old_path)-1)),
+			 	 src, dst,
 				 ts.tv_sec, 
-				 path_tostr(rmp->old_path));
+				 hopstr);
 		printf("%s\n", buf);
 
+		free(hopstr);
+		free(src);
+		free(dst);
 		free(buf);	
 	}
 	else {
@@ -196,10 +201,6 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int first)
 		int oldpath_join_ttl = path_search_hop(rmp->old_path, hop, 0);
 		rmp->shifts[join] = join - oldpath_join_ttl;
 	}
-
-	//printf("%s : oldpath_branch_ttl = %d\n", oldpath_branch_ttl);
-	//printf("%s : oldpath_join_ttl = %d\n", path_search_hop(rmp->old_path, hop, 0));
-	//fflush(stdout);
 
 	for(int i = branch+1; i < join; i++) rmp->shifts[i] = RMP_SHIFT_CHANGE;
 
@@ -461,7 +462,7 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 			prober_remap_hop(rmp->prober, rmp->new_path, ttl+1);
 			newhop = tqrecv(rmp->tq);
 		}
-		printf("%s : %s\n", __func__, pathhop_tostr(newhop));
+		
 		*pathhop_ttlptr(newhop) = ttl;
 		hop = probedb_add_hop(rmp->db, newhop);
 		pathhop_destroy(newhop);
@@ -492,98 +493,3 @@ static void remap_cb_iface(uint8_t ttl, uint8_t flowid,  /* {{{ */
 	free(str);
 	/* probedb_add_iface(rmp->db, iface); iface_destroy(iface); */
 }
-
-/* 
-	struct pathhop *joinhop = NULL;
-	struct pathhop *tkhop = NULL;
-	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
-	
-	int consecutive_stars = 0;
-	int added_hops = 0;
-	int oldshift = 0;
-	int joinstar = 0;
-	int last_join;
-
-	// last join
-	//int i = 0;
-
-	//printf("%s : remaphop = %s (ttl %d)\n", __func__, pathhop_tostr(rmphop), pathhop_ttl(rmphop));
-	//printf("%s : Inner loop start!\n", __func__);
-	//fflush(stdout);
-
-	//printf("%d\n", path_length(rmp->old_path));
-	for(int32_t i = 0; i + oldshift < path_length(rmp->old_path) || rmphop; ++i) {
-		//printf("%d %s %s\n", i, 
-		//	rmphop ? pathhop_tostr(rmphop) : "NULL", 
-		//	joinhop ? pathhop_tostr(joinhop) : "NULL");
-		//printf("%d\n", i);
-		//fflush(stdout);
-
-		if(rmphop && pathhop_ttl(rmphop) == i) {
-			//printf("%d %s ", i, pathhop_tostr(rmphop));
-			if(!pathhop_is_star(rmphop)) {
-				int j = path_search_hop(rmp->old_path, rmphop, 0);
-				oldshift = j-i;
-			}
-			//printf("%d\n", oldshift);
-			tkhop = rmphop;
-			rmphop = pavl_t_next(&trav);
-		}
-		else {
-			tkhop = pathhop_get_hop(rmp->old_path, i + oldshift);
-		}
-
-		if(pathhop_is_star(tkhop) && ++consecutive_stars == 4) break;
-		else consecutive_stars = 0;
-
-		char *s = pathhop_tostr(tkhop);
-		//printf("%s\n", s);
-		//fflush(stdout);
-
-		strncat(hstr, s, bufsz);
-		bufsz -= strlen(s);
-		bufsz = (bufsz < 0) ? 0 : bufsz;
-		strncat(hstr, "|", bufsz);
-		bufsz--;
-		bufsz = (bufsz < 0) ? 0 : bufsz;
-		free(s);
-	}
-	*/
-
-/*
-	for(int32_t i = 0; i + oldshift < path_length(rmp->old_path) || rmphop || joinhop; ++i) {
-		printf("%d %s %s\n", i, 
-			rmphop ? pathhop_tostr(rmphop) : "NULL", 
-			joinhop ? pathhop_tostr(joinhop) : "NULL");
-		fflush(stdout);
-
-		if(rmphop && pathhop_ttl(rmphop) == i) {
-			tkhop = joinhop = rmphop;
-			rmphop = pavl_t_next(&trav);
-		}
-		else {
-			if(joinhop && !pathhop_is_star(joinhop)) {
-				int j = path_search_hop(rmp->old_path, joinhop, PATH_DIFF_FLAG_IGNORE_BALANCERS) + 1;
-				oldshift = j-i;
-				joinhop = NULL;
-				continue;
-			}
-			tkhop = pathhop_get_hop(rmp->old_path, i + oldshift);
-		}
-
-		if(pathhop_is_star(tkhop) && ++consecutive_stars == 4) break;
-		else consecutive_stars = 0;
-
-		char *s = pathhop_tostr(tkhop);
-		//printf("%s\n", s);
-		fflush(stdout);
-
-		strncat(hstr, s, bufsz);
-		bufsz -= strlen(s);
-		bufsz = (bufsz < 0) ? 0 : bufsz;
-		strncat(hstr, "|", bufsz);
-		bufsz--;
-		bufsz = (bufsz < 0) ? 0 : bufsz;
-		free(s);
-	}
-*/
