@@ -1,0 +1,7 @@
+remap.c
+    line 309:
+        if(rmp->new_path) {
+		    path_destroy(rmp->new_path);
+	    }
+    line 493:
+        newhop = pathhop_create_copy(pathhop_get_hop(rmp->new_path, ttl));

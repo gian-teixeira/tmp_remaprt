@@ -8,4 +8,5 @@
 !/src/*.c
 !/src/*.h
 !/src/Makefile
+!/tests/
 !/tests/*
