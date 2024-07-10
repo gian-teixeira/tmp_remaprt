@@ -10,3 +10,4 @@
 !/src/Makefile
 !/tests/
 !/tests/*
+!/project-config.sh
