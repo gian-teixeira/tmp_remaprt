@@ -69,6 +69,7 @@ void remap(const struct opts *opts) /* {{{ */
 
 	/* Remap origin */
 	struct pathhop *hop = remap_get_hop(rmp, rmp->startttl);
+	logd(LOG_INFO, "==%s %d\n", pathhop_tostr(hop), rmp->startttl);
 
 	/* If the router at start ttl can not be accessed, decrement the position
 	   until the access is possible. If no router responds, the remap is
@@ -89,46 +90,29 @@ void remap(const struct opts *opts) /* {{{ */
 	   it can be used to start the remap itself. Else, the binary is used to
 	   find a hop that fit the last condition */
 	int ttl = path_search_hop(rmp->old_path, hop, 0);
-	
+
 	if(ttl == rmp->startttl) {
 		/* The hop is already correct */
 		logd(LOG_INFO, "%s: no remap to do\n", __func__);
-		
-		struct timespec ts;
-		char *buf = malloc(PATH_STR_BUF);
-		char *src = pathhop_tostr(pathhop_get_hop(rmp->old_path, 0));
-		char *dst = pathhop_tostr(pathhop_get_hop(rmp->old_path, path_length(rmp->old_path)-1));
-		char *hopstr = path_tostr(rmp->old_path);
-
-		clock_gettime(CLOCK_REALTIME, &ts);
-		if(!buf) logea(__FILE__, __LINE__, NULL);
-		snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %d", 
-			 	 rmp->total_probes_sent,
-			 	 src, dst,
-				 ts.tv_sec, 
-				 hopstr);
-		printf("%s\n", buf);
-
-		free(hopstr);
-		free(src);
-		free(dst);
-		free(buf);	
+		char *pathstr = path_tostr(rmp->old_path);
+		printf("%s 0 0 0\n", pathstr);
+		free(pathstr);
+		remap_destroy(rmp);
+		return;
 	}
+	else if(ttl == -1) {
+		/* The hop is wrong itself. No search necessary */
+		logd(LOG_INFO, "%s: starting with local remap\n", __func__);
+		remap_local(rmp, rmp->startttl, 0, 1);
+	} 
 	else {
-		if(ttl == -1) {
-			/* The hop is wrong itself. No search necessary */
-			logd(LOG_INFO, "%s: starting with local remap\n", __func__);
-			remap_local(rmp, rmp->startttl, 0, 1);
-		} 
-		else {
-			/* The hop is shifted. Search used */
-			logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
-			remap_binary(rmp, 0, rmp->startttl);
-		}
-		remap_print_result(rmp);
+		/* The hop is shifted. Search used */
+		logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
+		remap_binary(rmp, 0, rmp->startttl);
 	}
 
 	/* Taking the garbage and handle with the errors */
+	remap_print_result(rmp);
 	remap_destroy(rmp);
 	return;
 
@@ -194,13 +178,16 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int first)
 
 	join--;
 
-	
 
 	if(!pathhop_is_star(hop)) {
 		/* we have a join point */
 		int oldpath_join_ttl = path_search_hop(rmp->old_path, hop, 0);
 		rmp->shifts[join] = join - oldpath_join_ttl;
 	}
+
+	//printf("%s : oldpath_branch_ttl = %d\n", oldpath_branch_ttl);
+	//printf("%s : oldpath_join_ttl = %d\n", path_search_hop(rmp->old_path, hop, 0));
+	//fflush(stdout);
 
 	for(int i = branch+1; i < join; i++) rmp->shifts[i] = RMP_SHIFT_CHANGE;
 
@@ -214,7 +201,7 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int first)
 
 static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 {
-	printf("STARTED : %s\n", __func__);
+	//printf("STARTED : %s\n", __func__);
 	fflush(stdout);
 
 	struct pathhop *hop;
@@ -345,12 +332,189 @@ static void remap_result_append_hop(char *buf, int *bufsz, struct pathhop *hop)
 	*bufsz -= 1;
 	*bufsz = (*bufsz < 0) ? 0 : *bufsz;
 	free(hop_str);
+	
 }
+
+// static void remap_print_result(const struct remap *rmp) /* {{{ */
+// {
+// 	struct pavl_traverser trav;
+// 	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+// 	char *hstr, *buf;
+
+// 	if(!inet_ntop(AF_INET, path_srcptr(rmp->old_path), src, INET_ADDRSTRLEN)) {
+// 		logea(__FILE__, __LINE__, NULL);
+// 	}
+// 	if(!inet_ntop(AF_INET, path_dstptr(rmp->old_path), dst, INET_ADDRSTRLEN)) {
+// 		logea(__FILE__, __LINE__, NULL);
+// 	}
+
+// 	struct timespec ts;
+// 	clock_gettime(CLOCK_REALTIME, &ts);
+// 	unsigned time = ts.tv_sec;
+
+// 	int bufsz = PATH_STR_BUF - 1;
+// 	hstr = malloc(PATH_STR_BUF);
+// 	if(!hstr) logea(__FILE__, __LINE__, NULL);
+// 	hstr[0] = '\0';
+
+// 	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
+// 	for(int i = 0; i < path_length(rmp->old_path); i++) {
+// 		assert(!rmphop || pathhop_ttl(rmphop) >= i);
+// 		struct pathhop *strhop;
+// 		if(rmphop && pathhop_ttl(rmphop) == i) {
+// 			strhop = rmphop;
+// 			rmphop = pavl_t_next(&trav);
+// 		} else {
+// 			strhop = pathhop_get_hop(rmp->old_path, i);
+// 		}
+
+// 		char *s = pathhop_tostr(strhop);
+// 		strncat(hstr, s, bufsz);
+// 		bufsz -= strlen(s);
+// 		bufsz = (bufsz < 0) ? 0 : bufsz;
+// 		strncat(hstr, "|", bufsz);
+// 		bufsz--;
+// 		bufsz = (bufsz < 0) ? 0 : bufsz;
+// 		free(s);
+// 	}
+
+// 	for(; rmphop; rmphop = pavl_t_next(&trav)) {
+// 		char *s = pathhop_tostr(rmphop);
+// 		strncat(hstr, s, bufsz);
+// 		bufsz -= strlen(s);
+// 		bufsz = (bufsz < 0) ? 0 : bufsz;
+// 		strncat(hstr, "|", bufsz);
+// 		bufsz--;
+// 		bufsz = (bufsz < 0) ? 0 : bufsz;
+// 		free(s);
+// 	}
+
+// 	assert(*(strchr(hstr, '\0') - 1) == '|');
+// 	*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
+
+// 	buf = malloc(PATH_STR_BUF);
+// 	if(!buf) logea(__FILE__, __LINE__, NULL);
+// 	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s 0 0 0", rmp->total_probes_sent,
+// 			src, dst, time, hstr);
+// 	printf("%s\n", buf);
+// 	free(hstr);
+// 	free(buf);
+// } /* }}} */
+
+
+// static void remap_print_result(const struct remap *rmp) /* {{{ */
+// {
+// 	//printf("%s : Should build the path!\n", __func__);
+// 	//fflush(stdout);
+// 	//return;
+
+// 	struct pavl_traverser trav;
+// 	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+// 	char *hstr, *buf;
+
+// 	if(!inet_ntop(AF_INET, path_srcptr(rmp->old_path), src, INET_ADDRSTRLEN)) {
+// 		logea(__FILE__, __LINE__, NULL);
+// 	}
+// 	if(!inet_ntop(AF_INET, path_dstptr(rmp->old_path), dst, INET_ADDRSTRLEN)) {
+// 		logea(__FILE__, __LINE__, NULL);
+// 	}
+
+// 	struct timespec ts;
+// 	clock_gettime(CLOCK_REALTIME, &ts);
+// 	unsigned time = ts.tv_sec;
+
+// 	int bufsz = PATH_STR_BUF - 1;
+// 	hstr = malloc(PATH_STR_BUF);
+// 	if(!hstr) logea(__FILE__, __LINE__, NULL);
+// 	hstr[0] = '\0';
+
+// 	int added_hops = 0;
+// 	int last_oldpath_ttl = 0;
+// 	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
+
+// 	for(int i = 0; i < path_length(rmp->old_path); i++) {
+// 		assert(!rmphop || pathhop_ttl(rmphop) >= i);
+// 		struct pathhop *strhop = NULL;
+// 		//printf("1 %d\n", last_oldpath_ttl);
+
+// 		/* Use rmphop if it doesnt appear in oldpath */
+// 		if(rmphop && pathhop_ttl(rmphop) == i && pathhop_is_star(rmphop)) {
+// 			//printf("2\n");
+// 			strhop = rmphop;
+// 			rmphop = pavl_t_next(&trav);
+// 			if(rmphop && !pathhop_is_star(rmphop) && path_search_hop(rmp->old_path, rmphop, 0) != -1) 
+// 				last_oldpath_ttl = path_search_hop(rmp->old_path, rmphop, 0);
+// 		}
+// 		else if(rmphop && pathhop_ttl(rmphop) == i) {
+// 			//printf("3\n");
+
+// 			strhop = rmphop;
+// 			rmphop = pavl_t_next(&trav);
+// 			/* We need to update last_oldpath_ttl for the next iteration. */
+// 			if(rmphop && !pathhop_is_star(rmphop) && path_search_hop(rmp->old_path, rmphop, 0) != -1) 
+// 				last_oldpath_ttl = path_search_hop(rmp->old_path, rmphop, 0);
+// 		} else {
+// 			//printf("4\n");
+// 			strhop = pathhop_get_hop(rmp->old_path, last_oldpath_ttl);
+// 			last_oldpath_ttl++;
+// 			/* We need to update avl hops to follow oldpath ttl. */
+// 			while(rmphop && pathhop_ttl(rmphop) <= i) {
+// 				//printf("%p\n", rmphop);
+// 				rmphop = pavl_t_next(&trav);
+// 			}
+// 		}
+
+// 		//printf("%s\n", pathhop_tostr(strhop));
+// 		logd(LOG_INFO, "-->%d %s\n", i, pathhop_tostr(strhop));
+
+// 		remap_result_append_hop(hstr, &bufsz, strhop);
+// 	}
+
+// 	int rmp_appended = 0;
+// 	for(; rmphop; rmphop = pavl_t_next(&trav)) {
+// 		remap_result_append_hop(hstr, &bufsz, rmphop);
+// 		last_oldpath_ttl = path_search_hop(rmp->old_path, rmphop, 0);
+// 		rmp_appended = 1;
+// 	}
+
+// 	/* If oldpath reaches the end but remaprt doesnt probe from some ttl to
+// 		the end, we use the oldpath remaining hops to complete. */
+// 	struct pathhop *lasthop = pathhop_get_hop(rmp->old_path, path_length(rmp->old_path)-1);
+// 	if(pathhop_contains_ip(lasthop, path_dst(rmp->old_path)) && last_oldpath_ttl != -1){
+// 		for(int i=last_oldpath_ttl+rmp_appended; i<path_length(rmp->old_path); i++){
+// 			struct pathhop *strhop = pathhop_get_hop(rmp->old_path, i);
+// 			remap_result_append_hop(hstr, &bufsz, strhop);
+// 		}
+// 	}
+
+// 	assert(*(strchr(hstr, '\0') - 1) == '|');
+// 	*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
+
+// 	int measured = 0;
+// 	for(int i = 0; i < 50; i++) measured += measured_ttl[i];
+
+// 	buf = malloc(PATH_STR_BUF);
+// 	if(!buf) logea(__FILE__, __LINE__, NULL);
+// 	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %d", 
+// 			 rmp->total_probes_sent,
+// 			 src, dst, time, hstr, 
+// 			 added_hops, path_length(rmp->new_path),
+// 			 measured);
+// 	printf("%s\n", buf);
+// 	free(hstr);
+// 	free(buf);
+// } /* }}} */
 
 static void remap_print_result(const struct remap *rmp) /* {{{ */
 {
+	//printf("%s : Should build the path!\n", __func__);
+	//fflush(stdout);
+	//return;
+
 	struct pavl_traverser trav;
 	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+	struct pathhop *outpath[MAX_PATH_LENGTH];
+	memset(outpath, 0, sizeof(outpath));
 	char *hstr, *buf;
 
 	if(!inet_ntop(AF_INET, path_srcptr(rmp->old_path), src, INET_ADDRSTRLEN)) {
@@ -364,60 +528,39 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	clock_gettime(CLOCK_REALTIME, &ts);
 	unsigned time = ts.tv_sec;
 
+
+	int added_hops = 0;
+	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
+	struct pathhop *branch = rmphop;
+	struct pathhop *join;
+	int join_new_ttl;
+	for(; rmphop; rmphop = pavl_t_next(&trav)) {
+		logd(LOG_INFO, "printing %s %d\n", pathhop_tostr(rmphop), pathhop_ttl(rmphop));
+		outpath[pathhop_ttl(rmphop)] = rmphop;
+		join = rmphop;
+		join_new_ttl = pathhop_ttl(rmphop);
+	}
+
+	int ttl_branch_oldpath = path_search_hop(rmp->old_path, branch, 0);
+	int ttl_join_oldpath = path_search_hop(rmp->old_path, join, 0);
+
+	logd(LOG_INFO, "branch=%d join=%d\n", ttl_branch_oldpath, ttl_join_oldpath);
+
+	for(int i=0; i < ttl_branch_oldpath; i++){
+		outpath[i] = pathhop_get_hop(rmp->old_path, i);
+	}
+
+	for(int i=1; ttl_join_oldpath+i < path_length(rmp->old_path); i++){
+		outpath[join_new_ttl+i] = pathhop_get_hop(rmp->old_path, ttl_join_oldpath+i);
+	}
+
 	int bufsz = PATH_STR_BUF - 1;
 	hstr = malloc(PATH_STR_BUF);
 	if(!hstr) logea(__FILE__, __LINE__, NULL);
 	hstr[0] = '\0';
-
-	int added_hops = 0;
-	int last_oldpath_ttl = 0;
-	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
-
-	for(int i = 0; i < path_length(rmp->old_path); i++) {
-		assert(!rmphop || pathhop_ttl(rmphop) >= i);
-		struct pathhop *strhop = NULL;
-
-		/* Use rmphop if it doesnt appear in oldpath */
-		if(rmphop && pathhop_ttl(rmphop) == i && pathhop_is_star(rmphop)) {
-			strhop = rmphop;
-			rmphop = pavl_t_next(&trav);
-			if(rmphop && !pathhop_is_star(rmphop) && path_search_hop(rmp->old_path, rmphop, 0) != -1) 
-				last_oldpath_ttl = path_search_hop(rmp->old_path, rmphop, 0);
-		}
-		else if(rmphop && pathhop_ttl(rmphop) == i && path_search_hop(rmp->old_path, rmphop, 0) == -1) {
-			strhop = rmphop;
-			rmphop = pavl_t_next(&trav);
-			/* We need to update last_oldpath_ttl for the next iteration. */
-			if(rmphop && !pathhop_is_star(rmphop) && path_search_hop(rmp->old_path, rmphop, 0) != -1) 
-				last_oldpath_ttl = path_search_hop(rmp->old_path, rmphop, 0);
-		} else {
-			strhop = pathhop_get_hop(rmp->old_path, last_oldpath_ttl);
-			last_oldpath_ttl++;
-			/* We need to update avl hops to follow oldpath ttl. */
-			while(rmphop && pathhop_ttl(rmphop) <= i)
-				rmphop = pavl_t_next(&trav);
-		}
-
-		remap_result_append_hop(hstr, &bufsz, strhop);
+	for(int i=0; outpath[i] != NULL; i++) {
+		remap_result_append_hop(hstr, &bufsz, outpath[i]);
 	}
-
-	int rmp_appended = 0;
-	for(; rmphop; rmphop = pavl_t_next(&trav)) {
-		remap_result_append_hop(hstr, &bufsz, rmphop);
-		last_oldpath_ttl = path_search_hop(rmp->old_path, rmphop, 0);
-		rmp_appended = 1;
-	}
-
-	/* If oldpath reaches the end but remaprt doesnt probe from some ttl to
-		the end, we use the oldpath remaining hops to complete. */
-	struct pathhop *lasthop = pathhop_get_hop(rmp->old_path, path_length(rmp->old_path)-1);
-	if(pathhop_contains_ip(lasthop, path_dst(rmp->old_path)) && last_oldpath_ttl != -1){
-		for(int i=last_oldpath_ttl+rmp_appended; i<path_length(rmp->old_path); i++){
-			struct pathhop *strhop = pathhop_get_hop(rmp->old_path, i);
-			remap_result_append_hop(hstr, &bufsz, strhop);
-		}
-	}
-
 	assert(*(strchr(hstr, '\0') - 1) == '|');
 	*(strchr(hstr, '\0') - 1) = '\0'; /* remove trailing pipe */
 
@@ -435,6 +578,7 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	free(hstr);
 	free(buf);
 } /* }}} */
+
 
 struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 {
@@ -462,7 +606,7 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 			prober_remap_hop(rmp->prober, rmp->new_path, ttl+1);
 			newhop = tqrecv(rmp->tq);
 		}
-		
+		logd(LOG_INFO, "%s: %d %s\n", __func__, ttl, pathhop_tostr(newhop));
 		*pathhop_ttlptr(newhop) = ttl;
 		hop = probedb_add_hop(rmp->db, newhop);
 		pathhop_destroy(newhop);
@@ -493,3 +637,99 @@ static void remap_cb_iface(uint8_t ttl, uint8_t flowid,  /* {{{ */
 	free(str);
 	/* probedb_add_iface(rmp->db, iface); iface_destroy(iface); */
 }
+
+
+/* 
+	struct pathhop *joinhop = NULL;
+	struct pathhop *tkhop = NULL;
+	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
+	
+	int consecutive_stars = 0;
+	int added_hops = 0;
+	int oldshift = 0;
+	int joinstar = 0;
+	int last_join;
+
+	// last join
+	//int i = 0;
+
+	//printf("%s : remaphop = %s (ttl %d)\n", __func__, pathhop_tostr(rmphop), pathhop_ttl(rmphop));
+	//printf("%s : Inner loop start!\n", __func__);
+	//fflush(stdout);
+
+	//printf("%d\n", path_length(rmp->old_path));
+	for(int32_t i = 0; i + oldshift < path_length(rmp->old_path) || rmphop; ++i) {
+		//printf("%d %s %s\n", i, 
+		//	rmphop ? pathhop_tostr(rmphop) : "NULL", 
+		//	joinhop ? pathhop_tostr(joinhop) : "NULL");
+		//printf("%d\n", i);
+		//fflush(stdout);
+
+		if(rmphop && pathhop_ttl(rmphop) == i) {
+			//printf("%d %s ", i, pathhop_tostr(rmphop));
+			if(!pathhop_is_star(rmphop)) {
+				int j = path_search_hop(rmp->old_path, rmphop, 0);
+				oldshift = j-i;
+			}
+			//printf("%d\n", oldshift);
+			tkhop = rmphop;
+			rmphop = pavl_t_next(&trav);
+		}
+		else {
+			tkhop = pathhop_get_hop(rmp->old_path, i + oldshift);
+		}
+
+		if(pathhop_is_star(tkhop) && ++consecutive_stars == 4) break;
+		else consecutive_stars = 0;
+
+		char *s = pathhop_tostr(tkhop);
+		//printf("%s\n", s);
+		//fflush(stdout);
+
+		strncat(hstr, s, bufsz);
+		bufsz -= strlen(s);
+		bufsz = (bufsz < 0) ? 0 : bufsz;
+		strncat(hstr, "|", bufsz);
+		bufsz--;
+		bufsz = (bufsz < 0) ? 0 : bufsz;
+		free(s);
+	}
+	*/
+
+/*
+	for(int32_t i = 0; i + oldshift < path_length(rmp->old_path) || rmphop || joinhop; ++i) {
+		printf("%d %s %s\n", i, 
+			rmphop ? pathhop_tostr(rmphop) : "NULL", 
+			joinhop ? pathhop_tostr(joinhop) : "NULL");
+		fflush(stdout);
+
+		if(rmphop && pathhop_ttl(rmphop) == i) {
+			tkhop = joinhop = rmphop;
+			rmphop = pavl_t_next(&trav);
+		}
+		else {
+			if(joinhop && !pathhop_is_star(joinhop)) {
+				int j = path_search_hop(rmp->old_path, joinhop, PATH_DIFF_FLAG_IGNORE_BALANCERS) + 1;
+				oldshift = j-i;
+				joinhop = NULL;
+				continue;
+			}
+			tkhop = pathhop_get_hop(rmp->old_path, i + oldshift);
+		}
+
+		if(pathhop_is_star(tkhop) && ++consecutive_stars == 4) break;
+		else consecutive_stars = 0;
+
+		char *s = pathhop_tostr(tkhop);
+		//printf("%s\n", s);
+		fflush(stdout);
+
+		strncat(hstr, s, bufsz);
+		bufsz -= strlen(s);
+		bufsz = (bufsz < 0) ? 0 : bufsz;
+		strncat(hstr, "|", bufsz);
+		bufsz--;
+		bufsz = (bufsz < 0) ? 0 : bufsz;
+		free(s);
+	}
+*/

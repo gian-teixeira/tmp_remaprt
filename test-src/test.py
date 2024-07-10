@@ -8,7 +8,7 @@ def list2path(ids):
     data = ':0:0.00,0.00,0.00,0.00:|'.join(ids+[''])
     return data[:-1]
 
-tests = [x for x in listdir(".") if(x.find(".in") != -1)]
+tests = [x for x in listdir(".") if(x.find(".in") != -1 and x.find("log") == -1)]
 tests.sort()
 
 for f in tests:
@@ -21,7 +21,7 @@ for f in tests:
     ttl = test_file.readline().strip()
 
     command = ["../src/remaproute", "-i", "eno8303", "-d", dstip, "-o", old_path,\
-            "-n", new_path, "-t", ttl, "-x", "10", "-l", "log"]
+            "-n", new_path, "-t", ttl, "-x", "10", "-l", "log."+str(f)]
 
 
     print("test: ", f)
