@@ -223,6 +223,8 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 		int p1ttl = path_search_hop(rmp->old_path, hop, 0);
 		logd(LOG_DEBUG, "CHECKME: i %d p1ttl %d shift %d\n",
 				i, p1ttl, rmp->shifts[i]);
+		for(int k=0; k<MAX_PATH_LENGTH; k++) logd(LOG_DEBUG, "%d ", rmp->shifts[k]);
+		logd(LOG_DEBUG, "\n");
 		if((i - p1ttl) == rmp->shifts[i]) {
 			/* hop at expected position, change is to the right */
 			l = i;
