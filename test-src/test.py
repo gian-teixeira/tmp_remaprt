@@ -1,6 +1,7 @@
 import subprocess
 from sys import argv
-from os import listdir
+from os import listdir,makedirs
+from os.path import exists
 
 def list2path(ids):
     id2ip = lambda id : f'{id}.{id}.{id}.{id}'
@@ -20,13 +21,16 @@ for f in tests:
     dstip = dst+"."+dst+"."+dst+"."+dst
     ttl = test_file.readline().strip()
 
+    if(not exists("./logs")):
+        makedirs("./logs")
+
     command = ["../src/remaproute", "-i", "eno8303", "-d", dstip, "-o", old_path,\
-            "-n", new_path, "-t", ttl, "-x", "10", "-l", "log."+str(f)]
+            "-n", new_path, "-t", ttl, "-x", "10", "-l", "logs/log."+str(f)]
 
 
     print("test: ", f)
     with subprocess.Popen(command, stdout=subprocess.PIPE, encoding='utf-8') as process:
-        outs, errs = process.communicate(timeout=1)
+        outs, errs = process.communicate(timeout=1)       
         remaprt_path = outs.strip().split(" ")[-4]
         if(right_path == remaprt_path):
             print("pass")
