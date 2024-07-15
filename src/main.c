@@ -32,7 +32,7 @@ int main(int argc, char** argv) /* {{{ */
 	struct opts *opts = opts_parse(argc, argv);
 	if(!opts) goto out_usage;
 
-	log_init(LOG_EXTRA, opts->logbase, 1, 65535*128);
+	log_init(LOG_EXTRA, opts->logbase, 10, 65535*128);
 
 	char *pstr = path_tostr(opts->old_path);
 	logd(LOG_INFO, "path %s\n", pstr);

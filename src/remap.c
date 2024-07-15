@@ -36,6 +36,7 @@ struct remap {
 	struct tqueue *tq;
 	uint8_t startttl;
 	int total_probes_sent;
+	int total_ttl_measured;
 
 	struct probedb *db;
 	int shifts[MAX_PATH_LENGTH];
@@ -214,10 +215,6 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int first)
 		rmp->shifts[join] = join - oldpath_join_ttl;
 	}
 
-	//printf("%s : oldpath_branch_ttl = %d\n", oldpath_branch_ttl);
-	//printf("%s : oldpath_join_ttl = %d\n", path_search_hop(rmp->old_path, hop, 0));
-	//fflush(stdout);
-
 	for(int i = branch+1; i < join; i++) rmp->shifts[i] = RMP_SHIFT_CHANGE;
 	logd(LOG_DEBUG, "-- %s : minttl = %d\n", __func__, minttl);
 	if(rmp->shifts[branch] != branch - oldpath_branch_ttl) {
@@ -255,6 +252,8 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 		int p1ttl = path_search_hop(rmp->old_path, hop, 0);
 		logd(LOG_DEBUG, "CHECKME: i %d p1ttl %d shift %d\n",
 				i, p1ttl, rmp->shifts[i]);
+		for(int k=0; k<MAX_PATH_LENGTH; k++) logd(LOG_DEBUG, "%d ", rmp->shifts[k]);
+		logd(LOG_DEBUG, "\n");
 		if((i - p1ttl) == rmp->shifts[i]) {
 			/* hop at expected position, change is to the right */
 			l = i;
@@ -324,6 +323,7 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 	/* -1 because we do all computation counting from zero */
 	rmp->startttl = opts->ttl - 1;
 	rmp->total_probes_sent = 0;
+	rmp->total_ttl_measured = 0;
 	memset(rmp->shifts, 0, MAX_PATH_LENGTH*sizeof(int));
 
 	return rmp;
@@ -403,6 +403,7 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	}
 
 	int ttl_branch_oldpath = path_search_hop(rmp->old_path, branch, 0);
+<<<<<<< HEAD
 	int ttl_join_oldpath = pathhop_is_star(join) ? -1 : path_search_hop(rmp->old_path, join, 0);
 
 	for(int i = 0; i < ttl_branch_oldpath; i++) {
@@ -413,6 +414,45 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 		for(int i = 1; ttl_join_oldpath+i < path_length(rmp->old_path); i++) {
 			outpath[ttl_join_newpath+i] = pathhop_get_hop(rmp->old_path, ttl_join_oldpath+i);
 		}
+=======
+	int ttl_join_oldpath = pathhop_is_star(join)? -1 : path_search_hop(rmp->old_path, join, 0);
+
+	logd(LOG_INFO, "branch=%d join=%d\n", ttl_branch_oldpath, ttl_join_oldpath);
+
+	for(int i=0; i < ttl_branch_oldpath; i++){
+		if(outpath[i] == NULL) outpath[i] = pathhop_get_hop(rmp->old_path, i);
+	}
+
+	// Only print oldpath if the join exists.
+	if(ttl_join_oldpath != -1){
+		for(int i=1; ttl_join_oldpath+i < path_length(rmp->old_path); i++){
+			if(outpath[join_new_ttl+i] == NULL)
+				outpath[join_new_ttl+i] = pathhop_get_hop(rmp->old_path, ttl_join_oldpath+i);
+		}
+	}
+
+	// Fill missing hops in outpath.
+	int outpath_size;
+	for(int i=0; i<MAX_PATH_LENGTH; i++) 
+		if(outpath[i] != NULL) 
+			outpath_size = i;
+
+	int oldpath_counter = 0;
+	for(int i=0; i < outpath_size; i++){
+		if(outpath[i] == NULL){
+			/* New hops must be surrounded by branch and join OR
+			   if there is no join, no missing hops is possible as
+			   rmprt will probe from new hop till it find 4 stars.
+			*/
+			assert(oldpath_counter >= 0); 
+			outpath[i] = pathhop_get_hop(rmp->old_path, oldpath_counter);
+			oldpath_counter++;
+		} else {
+			if(!pathhop_is_star(outpath[i]))
+				oldpath_counter = path_search_hop(rmp->old_path, outpath[i], 0)+1;
+		}
+	}
+>>>>>>> 213a19733053b072a6cf0448f7b35d706d0dcc6a
 
 	int bufsz = PATH_STR_BUF - 1;
 	hstr = malloc(PATH_STR_BUF);
