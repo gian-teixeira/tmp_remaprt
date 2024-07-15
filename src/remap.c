@@ -206,7 +206,8 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 	int p1left = 0;
 	int p1right = MAX_PATH_LENGTH;
 	
-	while(r > l+1) {
+	while(r > l) {
+		logd(LOG_DEBUG, "init l=%d r=%d\n", l, r);
 		int i = (l + r)/2;
 		hop = remap_get_hop(rmp, i);
 		while(pathhop_is_star(hop)) {
@@ -216,6 +217,7 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 		
 		if(i == l) {
 			/* STARs made us reach the left limit, fallback */
+			logd(LOG_DEBUG, "left most hop reached\n");
 			r = remap_local(rmp, (l + r)/2, l, 0);
 			break;
 		}
@@ -237,18 +239,22 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 			p1right = p1ttl;
 		} else {
 			/* found a hop that is not in the old path */
+			logd(LOG_DEBUG, "Calling remap_local minttl=%d ttl=%d\n",
+				i, l);
 			r = remap_local(rmp, i, l, 0);
 			break;
 		}
+		logd(LOG_DEBUG, "end l=%d r=%d\n", l, r);
 	}
 
 	hop = probedb_find_hop(rmp->db, r);
 	assert(hop);
 	int shift = r - path_search_hop(rmp->old_path, hop, 0);
+	logd(LOG_DEBUG, "hop_ref_shift=%s shift=%d\n", pathhop_tostr(hop), shift);
 	for(int i = r; i <= right_boundary; i++) rmp->shifts[i] = shift;
 
 	struct pavl_traverser trav;
-	int pttl = 0;
+	int pttl = r; // Must start from r.
 	for(hop = pavl_t_first(&trav, rmp->db->hops); hop;
 			hop = pavl_t_next(&trav)) {
 		int ttl = pathhop_ttl(hop);
@@ -257,6 +263,8 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 		assert(rmp->shifts[ttl] != RMP_SHIFT_CHANGE);
 		if(pathhop_is_star(hop)) continue;
 		int true_shift = ttl - path_search_hop(rmp->old_path, hop, 0);
+		logd(LOG_DEBUG, "remapping true_shift=%d rmp_shift=%d hop=%s\n", true_shift, 
+			rmp->shifts[ttl], pathhop_tostr(hop));
 		if(true_shift != rmp->shifts[ttl]) {
 			remap_binary(rmp, pttl, ttl);
 		}
