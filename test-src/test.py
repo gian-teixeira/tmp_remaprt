@@ -28,6 +28,8 @@ for f in tests:
     with subprocess.Popen(command, stdout=subprocess.PIPE, encoding='utf-8') as process:
         outs, errs = process.communicate(timeout=1)
         remaprt_path = outs.strip().split(" ")[-4]
+        print(right_path)
+        print(remaprt_path)
         if(right_path == remaprt_path):
             print("pass")
         else:

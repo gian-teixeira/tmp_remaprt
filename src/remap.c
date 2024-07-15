@@ -49,6 +49,8 @@ static void remap_destroy(struct remap *rmp);
 static void remap_print_result(const struct remap *rmp);
 static struct pathhop * remap_get_hop(struct remap *rmp, int ttl);
 
+static void remap_result_append_hop(char *buf, int *bufsz, struct pathhop *hop);
+
 static void remap_cb_hop(uint8_t ttl, int nprobes, struct pathhop *hop,
 		void *rmp);
 
@@ -94,25 +96,53 @@ void remap(const struct opts *opts) /* {{{ */
 	if(ttl == rmp->startttl) {
 		/* The hop is already correct */
 		logd(LOG_INFO, "%s: no remap to do\n", __func__);
-		char *pathstr = path_tostr(rmp->old_path);
-		printf("%s 0 0 0\n", pathstr);
-		free(pathstr);
-		remap_destroy(rmp);
-		return;
+
+		struct timespec ts;
+		char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+		char *buf = malloc(PATH_STR_BUF);
+		int bufsz = PATH_STR_BUF - 1;
+		char hstr[PATH_STR_BUF];
+		
+
+		*hstr = '\0';
+		for(int i = 0; i < path_length(rmp->old_path); ++i) {
+			remap_result_append_hop(hstr, &bufsz, pathhop_get_hop(rmp->old_path,i));
+		}
+		*(strchr(hstr, '\0') - 1) = '\0';
+
+		if(!inet_ntop(AF_INET, path_srcptr(rmp->old_path), src, INET_ADDRSTRLEN)) {
+			logea(__FILE__, __LINE__, NULL);
+		}
+		if(!inet_ntop(AF_INET, path_dstptr(rmp->old_path), dst, INET_ADDRSTRLEN)) {
+			logea(__FILE__, __LINE__, NULL);
+		}
+		clock_gettime(CLOCK_REALTIME, &ts);
+		if(!buf) logea(__FILE__, __LINE__, NULL);
+		snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %d", 
+			 	 rmp->total_probes_sent,
+			 	 src, dst,
+				 ts.tv_sec,
+				 hstr,
+				 0, 0, 0);
+		printf("%s\n", buf);
+
+		free(buf);	
 	}
-	else if(ttl == -1) {
-		/* The hop is wrong itself. No search necessary */
-		logd(LOG_INFO, "%s: starting with local remap\n", __func__);
-		remap_local(rmp, rmp->startttl, 0, 1);
-	} 
 	else {
-		/* The hop is shifted. Search used */
-		logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
-		remap_binary(rmp, 0, rmp->startttl);
+		if(ttl == -1) {
+			/* The hop is wrong itself. No search necessary */
+			logd(LOG_INFO, "%s: starting with local remap\n", __func__);
+			remap_local(rmp, rmp->startttl, 0, 1);
+		} 
+		else {
+			/* The hop is shifted. Search used */
+			logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
+			remap_binary(rmp, 0, rmp->startttl);
+		}
+		remap_print_result(rmp);
 	}
 
 	/* Taking the garbage and handle with the errors */
-	remap_print_result(rmp);
 	remap_destroy(rmp);
 	return;
 
@@ -178,7 +208,6 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int first)
 
 	join--;
 
-
 	if(!pathhop_is_star(hop)) {
 		/* we have a join point */
 		int oldpath_join_ttl = path_search_hop(rmp->old_path, hop, 0);
@@ -190,7 +219,7 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int first)
 	//fflush(stdout);
 
 	for(int i = branch+1; i < join; i++) rmp->shifts[i] = RMP_SHIFT_CHANGE;
-
+	logd(LOG_DEBUG, "-- %s : minttl = %d\n", __func__, minttl);
 	if(rmp->shifts[branch] != branch - oldpath_branch_ttl) {
 		/* set rmp->shifts */
 		remap_binary(rmp, minttl, branch);
@@ -249,19 +278,24 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 	for(int i = r; i <= right_boundary; i++) rmp->shifts[i] = shift;
 
 	struct pavl_traverser trav;
-	int pttl = 0;
-	for(hop = pavl_t_first(&trav, rmp->db->hops); hop;
-			hop = pavl_t_next(&trav)) {
+	int pttl = r;
+	logd(LOG_DEBUG, "-- %s : r = %d \t right_boundary = %d\n", __func__, r, right_boundary);
+	
+	for(hop = pavl_t_first(&trav, rmp->db->hops); hop; hop = pavl_t_next(&trav)) {
 		int ttl = pathhop_ttl(hop);
 		if(ttl > right_boundary) continue;
 		if(ttl <= r) continue;
 		assert(rmp->shifts[ttl] != RMP_SHIFT_CHANGE);
+		logd(LOG_DEBUG, "-- %s : \t %s\n", __func__, pathhop_tostr(hop));
 		if(pathhop_is_star(hop)) continue;
 		int true_shift = ttl - path_search_hop(rmp->old_path, hop, 0);
 		if(true_shift != rmp->shifts[ttl]) {
+			logd(LOG_DEBUG, "-- %s : recursive call (..., %d, %d)\n", __func__, pttl, ttl);
 			remap_binary(rmp, pttl, ttl);
 		}
-		pttl = ttl;
+		else {
+			logd(LOG_DEBUG, "-- %s : correct hop %s %d\n", __func__, pathhop_tostr(hop), ttl);
+		}
 	}
 } /* }}} */
 
@@ -359,26 +393,26 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	struct pathhop *rmphop = pavl_t_first(&trav, rmp->db->hops);
 	struct pathhop *branch = rmphop;
 	struct pathhop *join;
-	int join_new_ttl;
+	int ttl_join_newpath;
+
 	for(; rmphop; rmphop = pavl_t_next(&trav)) {
 		logd(LOG_INFO, "printing %s %d\n", pathhop_tostr(rmphop), pathhop_ttl(rmphop));
 		outpath[pathhop_ttl(rmphop)] = rmphop;
 		join = rmphop;
-		join_new_ttl = pathhop_ttl(rmphop);
+		ttl_join_newpath = pathhop_ttl(rmphop);
 	}
 
 	int ttl_branch_oldpath = path_search_hop(rmp->old_path, branch, 0);
-	int ttl_join_oldpath = path_search_hop(rmp->old_path, join, 0);
+	int ttl_join_oldpath = pathhop_is_star(join) ? -1 : path_search_hop(rmp->old_path, join, 0);
 
-	logd(LOG_INFO, "branch=%d join=%d\n", ttl_branch_oldpath, ttl_join_oldpath);
-
-	for(int i=0; i < ttl_branch_oldpath; i++){
+	for(int i = 0; i < ttl_branch_oldpath; i++) {
 		outpath[i] = pathhop_get_hop(rmp->old_path, i);
 	}
 
-	for(int i=1; ttl_join_oldpath+i < path_length(rmp->old_path); i++){
-		outpath[join_new_ttl+i] = pathhop_get_hop(rmp->old_path, ttl_join_oldpath+i);
-	}
+	if(ttl_join_oldpath != -1)
+		for(int i = 1; ttl_join_oldpath+i < path_length(rmp->old_path); i++) {
+			outpath[ttl_join_newpath+i] = pathhop_get_hop(rmp->old_path, ttl_join_oldpath+i);
+		}
 
 	int bufsz = PATH_STR_BUF - 1;
 	hstr = malloc(PATH_STR_BUF);
@@ -399,7 +433,8 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 			 rmp->total_probes_sent,
 			 src, dst, time, hstr, 
 			 added_hops, path_length(rmp->new_path),
-			 measured);
+			 measured,
+			 0, 0, 0);
 	printf("%s\n", buf);
 	free(hstr);
 	free(buf);
@@ -424,7 +459,7 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 				struct timespec tstamp;
 				clock_gettime(CLOCK_REALTIME, &tstamp);
 				newhop = pathhop_create_str(
-					"255.255.255.255:0:0.00,0.00,0.00,0.00:", 
+					"255.255.255.255:0:0.00,0.00,0.00,0.00:",
 					tstamp, ttl);
 			}
 		} else {
