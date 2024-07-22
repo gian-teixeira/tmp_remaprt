@@ -40,6 +40,8 @@ struct remap {
 
 	struct probedb *db;
 	int shifts[MAX_PATH_LENGTH];
+
+	double time_spent;
 };
 
 static int remap_local(struct remap *rmp, int ttl, int minttl, int first);
@@ -281,6 +283,7 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 	struct remap *rmp = malloc(sizeof(struct remap));
 	if(!rmp) logea(__FILE__, __LINE__, NULL);
 
+	rmp->time_spent = 0.0;
 	rmp->old_path = path_create_copy(opts->old_path);
 	rmp->new_path = path_create_copy(opts->new_path);
 	if(!rmp->old_path) goto out;
@@ -429,11 +432,11 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 
 	buf = malloc(PATH_STR_BUF);
 	if(!buf) logea(__FILE__, __LINE__, NULL);
-	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %d", 
+	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %d %.4lf", 
 			 rmp->total_probes_sent,
 			 src, dst, time, hstr, 
 			 added_hops, path_length(rmp->new_path),
-			 measured);
+			 measured, rmp->time_spent);
 	printf("%s\n", buf);
 	free(hstr);
 	free(buf);
@@ -442,7 +445,6 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 
 struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 {
-	measured_ttl[ttl] = 1;
 
 	struct pathhop *hop = probedb_find_hop(rmp->db, ttl);
 	if(!hop) {
@@ -452,7 +454,8 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 			if(ttl < path_length(rmp->new_path)) {
 				newhop = pathhop_create_copy(pathhop_get_hop(rmp->new_path, ttl));
 				int nifaces = pathhop_nifaces(newhop);
-				rmp->total_probes_sent += prober_iface2probes(nifaces);
+				if(!measured_ttl[ttl])
+					rmp->total_probes_sent += prober_iface2probes(nifaces);
 			}
 			else {
 				struct timespec tstamp;
@@ -461,6 +464,7 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 					"255.255.255.255:0:0.00,0.00,0.00,0.00:", 
 					tstamp, ttl);
 			}
+			measured_ttl[ttl] = 1;
 		} else {
 			// +1 because inside paths we count from zero 
 			prober_remap_hop(rmp->prober, rmp->new_path, ttl+1);
@@ -470,6 +474,9 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 		*pathhop_ttlptr(newhop) = ttl;
 		hop = probedb_add_hop(rmp->db, newhop);
 		pathhop_destroy(newhop);
+
+		if(pathhop_is_star(newhop)) rmp->time_spent += 3.0;
+		else rmp->time_spent = pathhop_rttavg_sample(newhop);
 	}
 	return hop;
 } /* }}} */

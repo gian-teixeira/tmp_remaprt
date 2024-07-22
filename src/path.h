@@ -63,6 +63,7 @@ int pathhop_ttl(const struct pathhop *hop);
 int * pathhop_ttlptr(struct pathhop *hop);
 struct pathhop * pathhop_get_hop(struct path *path, int ttl);
 int pathhop_nifaces(struct pathhop *h);
+double pathhop_rttavg_sample(const struct pathhop *hop);
 
 /*****************************************************************************
  * struct iface *

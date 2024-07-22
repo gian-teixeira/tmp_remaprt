@@ -964,6 +964,11 @@ int iface_first_flowid(const struct iface *iface) { return iface->flowids[0]; }
 
 double iface_rttavg(const struct iface *iface) { return iface->rttavg; }
 
+double pathhop_rttavg_sample(const struct pathhop *hop) { 
+	return iface_rttavg(hop->ifaces[0]);	
+}
+
+
 int iface_random_flowid(const struct iface *iface)
 { /* {{{ */
 	int i = drand48() * iface->nflowids;
