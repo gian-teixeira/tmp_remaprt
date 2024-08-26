@@ -58,9 +58,68 @@ static void remap_cb_hop(uint8_t ttl, int nprobes, struct pathhop *hop,
 static void remap_cb_iface(uint8_t ttl, uint8_t flowid, struct iface *i,
 		void *rmp);
 
+static void remap_result_append_hop(char *buf, int *bufsz, struct pathhop *hop);
+
 /*****************************************************************************
  * public implementations
  ****************************************************************************/
+void print_old_path(struct remap *rmp){
+		struct timespec ts;
+		char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+		char *buf = malloc(PATH_STR_BUF);
+		int bufsz = PATH_STR_BUF - 1;
+		char hstr[PATH_STR_BUF];
+
+		int measured = 0;
+		for(int i = 0; i < 50; i++) measured += measured_ttl[i];
+
+		*hstr = '\0';
+		for(int i = 0; i < path_length(rmp->old_path); ++i) {
+			remap_result_append_hop(hstr, &bufsz, pathhop_get_hop(rmp->old_path,i));
+		}
+		*(strchr(hstr, '\0') - 1) = '\0';
+
+		if(!inet_ntop(AF_INET, path_srcptr(rmp->old_path), src, INET_ADDRSTRLEN)) {
+			logea(__FILE__, __LINE__, NULL);
+		}
+		if(!inet_ntop(AF_INET, path_dstptr(rmp->old_path), dst, INET_ADDRSTRLEN)) {
+			logea(__FILE__, __LINE__, NULL);
+		}
+		clock_gettime(CLOCK_REALTIME, &ts);
+		if(!buf) logea(__FILE__, __LINE__, NULL);
+		snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s", 
+			 	 rmp->total_probes_sent,
+			 	 src, dst,
+				 ts.tv_sec,
+				 hstr);
+		// snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %.4lf", 
+		// 	 	 rmp->total_probes_sent,
+		// 	 	 src, dst,
+		// 		 ts.tv_sec,
+		// 		 hstr,
+		// 		 path_length(rmp->new_path),
+		// 	 	 measured, 
+		// 		 rmp->time_spent);
+		printf("%s\n", buf);
+		free(buf);
+}
+
+int fix_first_hop(struct remap *rmp){
+	struct pathhop *firsthop = pathhop_get_hop(rmp->old_path, 0);
+	if(!pathhop_is_star(firsthop)) return 1;
+	logd(LOG_DEBUG, "%s: first hop is star. Try to fix\n", __func__);
+	firsthop = remap_get_hop(rmp, 0);
+	if(pathhop_is_star(firsthop)){ 
+		logd(LOG_INFO, "%s: first hop didnt answer. Skipping!\n", __func__);
+		// pathhop_destroy(firsthop);
+		return 0;
+	}
+	logd(LOG_DEBUG, "%s: first hop fixed!\n", __func__);
+	path_set_hop(rmp->old_path, 0, pathhop_create_copy(firsthop));
+	logd(LOG_DEBUG, "%s: first hop updated!\n", __func__);
+	return 1;
+}
+
 void remap(const struct opts *opts) /* {{{ */
 {
 	struct remap *rmp = remap_create(opts);
@@ -72,7 +131,6 @@ void remap(const struct opts *opts) /* {{{ */
 
 	/* Remap origin */
 	struct pathhop *hop = remap_get_hop(rmp, rmp->startttl);
-	logd(LOG_INFO, "==%s %d\n", pathhop_tostr(hop), rmp->startttl);
 
 	/* If the router at start ttl can not be accessed, decrement the position
 	   until the access is possible. If no router responds, the remap is
@@ -83,10 +141,19 @@ void remap(const struct opts *opts) /* {{{ */
 		hop = remap_get_hop(rmp, rmp->startttl);
 	}
 	if(pathhop_is_star(hop)){
-		logd(LOG_INFO, "%s: cannot access hop\n", __func__);
+		assert(rmp->startttl == 0);
+		if(!fix_first_hop(rmp)){
+			logd(LOG_DEBUG, "%s: cannot access hop\n", __func__);
 	       	goto out;
+		}
+		hop = pathhop_get_hop(rmp->old_path, 0);
 	}
-	
+
+	if(!fix_first_hop(rmp)) {
+		logd(LOG_DEBUG, "%s: first hop is star!\n", __func__);
+		goto out;
+	}
+	assert(!pathhop_is_star(hop));
 
 	/* Position if the origin in the old path. If it is equal to the position
 	   in the new path, no remap is necessary. If the hop was not present, then
@@ -97,33 +164,31 @@ void remap(const struct opts *opts) /* {{{ */
 	if(ttl == rmp->startttl) {
 		/* The hop is already correct */
 		logd(LOG_INFO, "%s: no remap to do\n", __func__);
-		char *pathstr = path_tostr(rmp->old_path);
-		printf("%s 0 0 0\n", pathstr);
-		free(pathstr);
-		remap_destroy(rmp);
-		return;
+		print_old_path(rmp);
 	}
-	else if(ttl == -1) {
-		/* The hop is wrong itself. No search necessary */
-		logd(LOG_INFO, "%s: starting with local remap\n", __func__);
-		remap_local(rmp, rmp->startttl, 0, 1);
-	} 
 	else {
-		/* The hop is shifted. Search used */
-		logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
-		remap_binary(rmp, 0, rmp->startttl);
+		if(ttl == -1) {
+			/* The hop is wrong itself. No search necessary */
+			logd(LOG_INFO, "%s: starting with local remap\n", __func__);
+			remap_local(rmp, rmp->startttl, 0, 1);
+		} 
+		else {
+			/* The hop is shifted. Search used */
+			logd(LOG_INFO, "%s: starting with binsearch\n", __func__);
+			remap_binary(rmp, 0, rmp->startttl);
+		}
+		remap_print_result(rmp);
 	}
 
-	/* Taking the garbage and handle with the errors */
-	remap_print_result(rmp);
+	logd(LOG_DEBUG, "%s: remap_destroy init\n", __func__);
 	remap_destroy(rmp);
+	logd(LOG_DEBUG, "%s: remap_destroy end\n", __func__);
 	return;
-
 	
-
 	out_length:
 	logd(LOG_INFO, "%s: can't start after old path length+1\n", __func__);
 	out:
+	print_old_path(rmp);
 	remap_destroy(rmp);
 	printf("remap failed. (try checking the logs)\n");
 } /* }}} */
@@ -136,10 +201,29 @@ static int remap_local(struct remap *rmp, int ttl, int minttl, int first)
 	/* Finds the ttl where the old path and new path diverge.
 	   For that, walks on the path in left direction. */
 	do {
-		assert(branch >= 0);
-		logd(LOG_INFO, "%s: looking for branch at ttl %d\n", __func__, branch);
-		hop = remap_get_hop(rmp, branch);
-		branch--;
+		// if(branch < 0){
+		// 	logd(LOG_DEBUG,"FAILED: %s\n", path_tostr(rmp->old_path));
+		// }
+		// assert(branch >= 0);
+		// logd(LOG_INFO, "%s: looking for branch at ttl %d\n", __func__, branch);
+		// hop = remap_get_hop(rmp, branch);
+		// branch--;
+		if(branch < 0){
+			struct pathhop *h = remap_get_hop(rmp, 0);
+			if(pathhop_is_star(h)){ 
+				logd(LOG_DEBUG,"fix negative branch failed\n");
+				print_old_path(rmp);
+				exit(0);
+			}
+			path_set_hop(rmp->old_path, 0, pathhop_create_copy(h));
+			logd(LOG_DEBUG,"fix negative branch: %s\n", path_tostr(rmp->old_path));
+			branch = 0;
+		} else {
+			// assert(branch >= 0);
+			logd(LOG_INFO, "%s: looking for branch at ttl %d\n", __func__, branch);
+			hop = remap_get_hop(rmp, branch);
+			branch--;
+		}
 	} while(pathhop_is_star(hop) || 
 			path_search_hop(rmp->old_path, hop, 0) == -1);
 	
@@ -214,6 +298,11 @@ static void remap_binary(struct remap *rmp, int l, int r) /* {{{ */
 		hop = remap_get_hop(rmp, i);
 		while(pathhop_is_star(hop)) {
 			i--;
+			if(i < 0){
+				logd(LOG_DEBUG, "didnt find left most hop\n");
+				print_old_path(rmp);
+				exit(0);
+			}
 			hop = remap_get_hop(rmp, i);
 		}
 		
@@ -285,7 +374,9 @@ static struct remap * remap_create(const struct opts *opts) /* {{{ */
 
 	rmp->time_spent = 0.0;
 	rmp->old_path = path_create_copy(opts->old_path);
-	rmp->new_path = path_create_copy(opts->new_path);
+	rmp->new_path = opts->new_path;
+	if(opts->new_path) 
+		rmp->new_path = path_create_copy(opts->new_path);
 	if(!rmp->old_path) goto out;
 
 	rmp->db = probedb_create();
@@ -372,7 +463,9 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 	struct pathhop *join;
 	int join_new_ttl;
 	for(; rmphop; rmphop = pavl_t_next(&trav)) {
-		logd(LOG_INFO, "printing %s %d\n", pathhop_tostr(rmphop), pathhop_ttl(rmphop));
+		char *rmphopstr = pathhop_tostr(rmphop);
+		logd(LOG_INFO, "printing %s %d\n", rmphopstr, pathhop_ttl(rmphop));
+		free(rmphopstr);
 		outpath[pathhop_ttl(rmphop)] = rmphop;
 		join = rmphop;
 		join_new_ttl = pathhop_ttl(rmphop);
@@ -432,11 +525,12 @@ static void remap_print_result(const struct remap *rmp) /* {{{ */
 
 	buf = malloc(PATH_STR_BUF);
 	if(!buf) logea(__FILE__, __LINE__, NULL);
-	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s %d %d %d %.4lf", 
+	snprintf(buf, PATH_STR_BUF, "%d %s %s %d %s", 
 			 rmp->total_probes_sent,
-			 src, dst, time, hstr, 
-			 added_hops, path_length(rmp->new_path),
-			 measured, rmp->time_spent);
+			 src, dst, time, hstr);
+
+			//  added_hops, path_length(rmp->new_path),
+			//  measured, rmp->time_spent);
 	printf("%s\n", buf);
 	free(hstr);
 	free(buf);
@@ -451,6 +545,7 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 		struct pathhop *newhop = NULL;
 		
 		if(rmp->new_path) {
+			logd(LOG_DEBUG, "%s: offline\n", __func__);
 			if(ttl < path_length(rmp->new_path)) {
 				newhop = pathhop_create_copy(pathhop_get_hop(rmp->new_path, ttl));
 				int nifaces = pathhop_nifaces(newhop);
@@ -467,16 +562,18 @@ struct pathhop * remap_get_hop(struct remap *rmp, int ttl) /* {{{ */
 			measured_ttl[ttl] = 1;
 		} else {
 			// +1 because inside paths we count from zero 
+			logd(LOG_DEBUG, "%s: probing\n", __func__);
 			prober_remap_hop(rmp->prober, rmp->new_path, ttl+1);
 			newhop = tqrecv(rmp->tq);
 		}
-		logd(LOG_INFO, "%s: %d %s\n", __func__, ttl, pathhop_tostr(newhop));
+		// logd(LOG_INFO, "%s: %d %s\n", __func__, ttl, pathhop_tostr(newhop));
 		*pathhop_ttlptr(newhop) = ttl;
 		hop = probedb_add_hop(rmp->db, newhop);
-		pathhop_destroy(newhop);
 
 		if(pathhop_is_star(newhop)) rmp->time_spent += 3.0;
 		else rmp->time_spent = pathhop_rttavg_sample(newhop);
+
+		pathhop_destroy(newhop);
 	}
 	return hop;
 } /* }}} */
@@ -486,7 +583,9 @@ static void remap_cb_hop(uint8_t ttl, int nprobes, struct pathhop *hop,/*{{{*/
 {
 	struct remap *rmp = vrmp;
 	rmp->total_probes_sent += nprobes;
-	logd(LOG_INFO, "%s reply for hop at TTL %d\n", __func__, (int)ttl);
+	char *hopstr = pathhop_tostr(hop);
+	logd(LOG_INFO, "%s reply for hop at TTL %d: %s\n", __func__, (int)ttl, hopstr);
+	free(hopstr);
 	tqsend(rmp->tq, hop);
 	log_line(__func__,__LINE__,tq_getid(rmp->tq));
 } /* }}} */
@@ -500,7 +599,7 @@ static void remap_cb_iface(uint8_t ttl, uint8_t flowid,  /* {{{ */
 	assert(0);
 	/* FIXME TODO implement logic */
 	char *str = iface_tostr(iface);
-	fprintf(stdout, "%d:%d %s\n", (int)ttl, (int)flowid, str);
+	// fprintf(stdout, "%d:%d %s\n", (int)ttl, (int)flowid, str);
 	free(str);
 	/* probedb_add_iface(rmp->db, iface); iface_destroy(iface); */
 }

@@ -225,7 +225,6 @@ static void * confirm_thread(void *vconfirm) /* {{{ */
 			// Pela especificação da função, ela espera ev->time para sair
 			char time[100];
 			snprintf(time,19,"time waiting start %d",ev->time.tv_nsec);
-			printf("wait : %d\n", ev->time.tv_nsec);
 			log_line(__func__,__LINE__,time);
 			code = pthread_cond_timedwait(&confirm->event_cond,
 					&confirm->evlist_mut, &ev->time);

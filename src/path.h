@@ -46,6 +46,7 @@ struct timespec path_tstamp(const struct path *p);
 struct pavl_table * path_interfaces(const struct path *p);
 int path_alias(const struct path *p);
 void path_alias_set(struct path *p, int alias);
+void path_set_hop(struct path *p, int ttl, struct pathhop *h);
 
 /*****************************************************************************
  * struct pathhop *

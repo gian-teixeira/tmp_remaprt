@@ -66,7 +66,6 @@ struct pathentry
 static void path_destroy_void(void *path);
 static void path_check_reachability(struct path *p);
 static void path_remove_end_stars(struct path *p);
-static void path_set_hop(struct path *p, int ttl, struct pathhop *h);
 static void path_add_ifaces(struct path *p, const struct pathhop *h);
 static void path_diff_fill_missing(struct path *p1, struct path *p2, int ttl);
 static void path_diff_join(const struct path *p1, const struct path *p2,
@@ -392,6 +391,8 @@ out:
 int path_search_hop(const struct path *p, const struct pathhop *hop, /* {{{ */
 					uint32_t flags)
 {
+	// if(pathhop_is_star(hop))
+	// 	logd(LOG_DEBUG, "%s: STAR %d\n", __func__, pathhop_ttl(hop));
 	assert(!pathhop_is_star(hop));
 	for (int i = 0; i < p->length; i++)
 	{
@@ -582,9 +583,9 @@ static void path_check_reachability(struct path *p) /* {{{ */
 	}
 } /* }}} */
 
-static void path_set_hop(struct path *p, int ttl, struct pathhop *h) /* {{{ */
+void path_set_hop(struct path *p, int ttl, struct pathhop *h) /* {{{ */
 {
-	assert(p->hops[ttl] == NULL || pathhop_is_star(p->hops[ttl]));
+	assert(p->hops[ttl] == NULL || pathhop_is_star(p->hops[ttl]) || ttl == 0);
 	path_add_ifaces(p, h);
 	/* no path_del_ifaces because current hop is either NULL or a STAr */
 	if (p->hops[ttl])

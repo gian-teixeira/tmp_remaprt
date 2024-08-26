@@ -123,7 +123,7 @@ struct opts * opts_parse(int argc, char **argv) /* {{{ */
 
 	out_eval:
 	perror(NULL);
-	fprintf(stderr, "invalid value for parameter -%c %s\n", opt, optarg);
+	fprintf(stderr, "invalid value for parameter -%c\n", opt);
 	out_destroy:
 	if(hopstr_old != NULL) free(hopstr_old);
 	opts_destroy(opts);

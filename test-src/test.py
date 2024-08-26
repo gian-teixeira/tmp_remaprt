@@ -30,8 +30,8 @@ for f in tests:
 
     print("test: ", f)
     with subprocess.Popen(command, stdout=subprocess.PIPE, encoding='utf-8') as process:
-        outs, errs = process.communicate(timeout=1)       
-        remaprt_path = outs.strip().split(" ")[-4]
+        outs, errs = process.communicate(timeout=1)   
+        remaprt_path = outs.strip().split(" ")[-1]
         if(right_path == remaprt_path):
             print("pass")
         else:

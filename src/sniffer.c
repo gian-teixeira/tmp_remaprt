@@ -143,7 +143,7 @@ static int sniffer_openpcap(struct sniffer *s, pcap_if_t *iface) /* {{{ */
 	char errbuf[PCAP_ERRBUF_SIZE];
 	
 	errbuf[0] = '\0';
-	s->pcap = pcap_open_live(s->ifname, 65535, 1, 0, errbuf);
+	s->pcap = pcap_open_live(s->ifname, 65535, 1, 10, errbuf);
 	if(strlen(errbuf) > 0) {
 		logd(LOG_DEBUG, "%s:%d: %s\n", __FILE__, __LINE__, errbuf);
 	}
